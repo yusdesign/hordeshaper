@@ -8,6 +8,9 @@ const LS = {
 let presetsDoc = null;
 let currentPreset = null;
 
+let reliableModels = [];
+let unstableModels = [];
+
 let polling = null;
 let currentJobId = null;
 
@@ -106,6 +109,12 @@ async function copyPrompt() {
   }
 }
 
+function chosenModel(preset) {
+  const uns = $('modelUnstableSelect').value;
+  const rel = $('modelReliableSelect').value;
+  return uns || rel || localStorage.getItem(LS.model) || preset.model;
+}
+
 // ---- settings ----
 function loadSettings() {
   $('apiKeyInput').value = localStorage.getItem(LS.apiKey) || '';
@@ -118,27 +127,58 @@ function loadSettings() {
 
 function saveSettings() {
   localStorage.setItem(LS.apiKey, $('apiKeyInput').value.trim());
-  localStorage.setItem(LS.model, $('modelsSelect').value || '');
+  const chosen = $('modelUnstableSelect').value || $('modelReliableSelect').value || '';
+  localStorage.setItem(LS.model, chosen);
   flash('Settings saved');
 }
 
 async function loadModels() {
   try {
-    const res = await fetch('https://stablehorde.net/api/v2/status/models?type=image');
+    const res = await fetch(`${HORDE}/api/v2/status/models?type=image`);
     if (!res.ok) throw new Error(`models ${res.status}`);
-    const models = await res.json();          // array now
-    const sel = $('modelsSelect');
-    const pending = sel.dataset.pending || localStorage.getItem(LS.model) || '';
-    sel.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
-    for (const m of models) {
-      if (m.type && m.type !== 'image') continue;
-      if (m.name.toLowerCase().includes('nsfw')) continue;
+    const models = await res.json();
+
+    const reliableList = (presetsDoc.modelBuckets?.reliable || [])
+      .map(s => s.toLowerCase());
+    const isReliable = (name) =>
+      reliableList.includes(name.toLowerCase()) || reliableList.some(r => name.toLowerCase().startsWith(r));
+
+    const live = models.filter(m =>
+      (!m.type || m.type === 'image') &&
+      !m.name.toLowerCase().includes('nsfw')
+    );
+
+    reliableModels = live
+      .filter(m => isReliable(m.name) && m.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    unstableModels = live
+      .filter(m => !isReliable(m.name) || m.count === 0)
+      .sort((a, b) => (b.count || 0) - (a.count || 0));
+
+    const rel = $('modelReliableSelect');
+    const uns = $('modelUnstableSelect');
+    rel.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+    uns.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+
+    for (const m of reliableModels) {
       const o = document.createElement('option');
       o.value = m.name;
       o.textContent = `${m.name}  (${m.count})`;
-      sel.appendChild(o);
+      rel.appendChild(o);
     }
-    if (pending) sel.value = pending;
+    for (const m of unstableModels) {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = `${m.name}  (${m.count ?? 0})`;
+      uns.appendChild(o);
+    }
+
+    const saved = localStorage.getItem(LS.model);
+    if (saved) {
+      if (reliableModels.some(m => m.name === saved)) rel.value = saved;
+      else if (unstableModels.some(m => m.name === saved)) uns.value = saved;
+    }
   } catch (e) {
     console.warn('model list failed:', e);
   }
