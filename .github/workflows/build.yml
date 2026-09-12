@@ -57,12 +57,11 @@ jobs:
           npm install @capacitor/share
           npm install @capacitor/filesystem
 
-      - name: Show resolved versions
+      - name: Install asset + SVG tooling
         run: |
-          node -v
-          npm -v
-          java -version
-          npx cap --version || true
+          npm install --no-save @capacitor/assets
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
 
       - name: Add Android platform (only if missing)
         run: |
@@ -72,6 +71,28 @@ jobs:
 
       - name: Sync web assets into Android
         run: npx cap sync android
+
+      - name: Generate launcher icon PNGs from SVG
+        run: |
+          set -e
+          mkdir -p resources
+          # Full-bleed 1024 icon
+          rsvg-convert -w 1024 -h 1024 resources/icon.svg -o resources/icon.png
+          # Foreground layer: 60% scale, centered, transparent padding
+          rsvg-convert -w 614 -h 614 resources/icon.svg -o /tmp/fg-small.png
+          convert -size 1024x1024 xc:none /tmp/fg-small.png -gravity center -composite resources/icon-foreground.png
+          # Background layer: solid brand color
+          convert -size 1024x1024 xc:"#0c5460" resources/icon-background.png
+
+      - name: Generate Android resources
+        run: |
+          npx @capacitor/assets generate --android \
+            --iconBackgroundColor "#0c5460" \
+            --iconBackgroundColorDark "#0c5460"
+
+      - name: Verify plugins registered
+        run: |
+          cat android/app/src/main/assets/capacitor.plugins.json || true
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
