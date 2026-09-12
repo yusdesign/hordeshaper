@@ -1,1 +1,1 @@
-# horde-shaper
+# hordeshaper is horde shaper
