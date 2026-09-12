@@ -198,7 +198,7 @@ function pollJob(id) {
       }
       if (st.done) {
         clearInterval(polling);
-        const status = await fetch(`}/generate/status/${id}`).then(r => r.json());
+        const status = await fetch(`${HORDE}/generate/status/${id}`).then(r => r.json());
         const gen = status.generations?.[0];
         if (!gen) throw new Error('no generation in status');
         $('resultImg').src = gen.img;
