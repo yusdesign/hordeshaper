@@ -1,0 +1,8 @@
+{
+  "appId": "net.example.hordeshaper",
+  "appName": "Horde Shaper",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
