@@ -374,41 +374,39 @@ function pollJob(id) {
 async function downloadImage() {
   const src = $('resultImg').src;
   if (!src) return flash('Nothing to save');
+
   const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
 
-  // Capacitor path
+  // Native Android: Share sheet (user picks Save to Files, Photos, Drive, etc.)
   if (window.Capacitor?.isNativePlatform?.()) {
     try {
-      const { Filesystem, Directory } = window.Capacitor.Plugins;
       const { Share } = window.Capacitor.Plugins;
 
-      // fetch remote image → base64
+      // Horde serves images from R2 with CORS enabled, so fetch works in WebView.
       const res = await fetch(src);
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
       const blob = await res.blob();
+
+      // @capacitor/share needs a URI. On Android we can pass a content://
+      // or file:// URI. Easiest cross-version path: convert to a data URL
+      // and let Capacitor's Share plugin handle writing it.
       const base64 = await blobToBase64(blob);
+      const dataUrl = `data:${blob.type || 'image/webp'};base64,${base64}`;
 
-      const saved = await Filesystem.writeFile({
-        path: filename,
-        data: base64,
-        directory: Directory.Documents,
-        recursive: true
-      });
-
-      // offer share sheet so user can put it anywhere
       await Share.share({
-        title: 'Horde Shaper result',
-        url: saved.uri,
-        dialogTitle: 'Save image'
+        title: 'Horde Shaper',
+        text: `seed ${$('resultSeed').textContent || '?'}`,
+        url: dataUrl,
+        dialogTitle: 'Save or share image'
       });
-      flash('Saved');
     } catch (e) {
-      console.error(e);
-      flash('Save failed: ' + e.message);
+      console.error('share failed', e);
+      flash('Share failed: ' + e.message);
     }
     return;
   }
 
-  // Browser fallback — plain anchor download
+  // Browser fallback — direct download
   const a = document.createElement('a');
   a.href = src;
   a.download = filename;
