@@ -7,9 +7,9 @@
     "unstable": ["stable_diffusion_2.1", "sd_xl_refiner", "pixart"]
   },
   "modelAvatars": {
+    "Anything Diffusion": "avatars/anything.svg",
     "stable_diffusion": "avatars/stable_diffusion.svg",
     "Dreamshaper": "avatars/dreamshaper.svg",
-    "Anything Diffusion": "avatars/anything.svg",
     "Deliberate": "avatars/deliberate.svg",
     "SDXL 1.0": "avatars/sdxl.svg",
     "Realistic Vision": "avatars/realistic-vision.svg"
@@ -22,7 +22,8 @@
       "model": "Anything Diffusion",
       "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "portrait of a {subject}",
+        "medium": "portrait",
+        "subject": "{subject}",
         "style": "anime style, cel shading, clean lines",
         "framing": "close-up, centered, face fills frame",
         "background": "simple pastel background",
@@ -33,10 +34,11 @@
     {
       "id": "realistic-bust",
       "name": "🧑 Realistic Bust",
-      "model": "Deliberate",
+      "model": "Anything Diffusion",
       "params": { "width": 512, "height": 768, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "portrait of a {subject}",
+        "medium": "portrait",
+        "subject": "{subject}",
         "style": "photorealistic, cinematic",
         "framing": "head and shoulders, centered",
         "background": "blurred bokeh background",
@@ -47,10 +49,11 @@
     {
       "id": "watercolor-portrait",
       "name": "🎨 Watercolor Portrait",
-      "model": "Dreamshaper",
+      "model": "Anything Diffusion",
       "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "drawing of a {subject}",
+        "medium": "portrait",
+        "subject": "{subject}",
         "style": "watercolor painting, soft washes, paper texture",
         "framing": "bust shot, centered",
         "background": "white paper background",
@@ -59,14 +62,57 @@
       "negative": "blurry, deformed, photo, text, watermark, low quality"
     },
     {
+      "id": "watercolor-study",
+      "name": "🎨 Watercolor Study",
+      "model": "Anything Diffusion",
+      "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "drawing study",
+        "subject": "{subject}",
+        "style": "hairline pencil, watercolor painting, soft washes, paper texture",
+        "framing": "single object, centered, plain white background",
+        "quality": "delicate brushwork, artistic, sharp focus"
+      },
+      "negative": "face, human figure, portrait, blurry, deformed, text, watermark, low quality"
+    },
+    {
+      "id": "watercolor-elements",
+      "name": "🎨 Watercolor Elements",
+      "model": "Anything Diffusion",
+      "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "solid modelling drawing",
+        "subject": "{subject}",
+        "style": "watercolor painting, soft washes, paper texture, inks etching",
+        "framing": "single object, centered, plain white background",
+        "quality": "delicate brushwork, artistic, sharp focus"
+      },
+      "negative": "face, human figure, portrait, blurry, deformed, text, watermark, low quality"
+    },
+    {
+      "id": "geometric-study",
+      "name": "◼ Geometric Study",
+      "model": "stable_diffusion",
+      "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "isometric drawing",
+        "subject": "{subject}",
+        "style": "flat vector, limited palette, bauhaus",
+        "framing": "centered, square composition",
+        "quality": "clean lines, precise geometry, sharp edges"
+      },
+      "negative": "face, human figure, portrait, blurry, photo, text, watermark"
+    },
+    {
       "id": "pixel-icon",
       "name": "👾 Pixel Icon",
       "model": "stable_diffusion",
       "params": { "width": 512, "height": 512, "steps": 20, "cfg_scale": 7, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "pixel art icon of a {subject}",
+        "medium": "pixel art icon",
+        "subject": "{subject}",
         "style": "8-bit pixel art, retro game sprite, limited palette",
-        "framing": "centered, square composition",
+        "framing": "centered, isometric composition",
         "background": "solid dark background",
         "quality": "crisp pixels, clean edges"
       },
@@ -78,7 +124,8 @@
       "model": "Dreamshaper",
       "params": { "width": 512, "height": 768, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "fantasy portrait of a {subject}",
+        "medium": "fantasy portrait",
+        "subject": "{subject}",
         "style": "digital painting, epic fantasy art, dramatic lighting",
         "framing": "head and shoulders, centered",
         "background": "misty forest background",
@@ -92,17 +139,19 @@
       "model": "SDXL 1.0",
       "params": { "width": 1024, "height": 1024, "steps": 30, "cfg_scale": 6, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "portrait of a {subject}",
+        "medium": "portrait",
+        "subject": "{subject}",
         "style": "photorealistic, cinematic, ultra detailed",
         "framing": "close-up, centered",
         "background": "blurred studio background",
-        "quality": "8k, sharp focus, professional photography"
+        "quality": "4k, sharp focus, professional photography"
       },
       "negative": "blurry, deformed, text, watermark, low quality, bad anatomy"
     }    
   ],
   "subjects": [
     "happy woman", "happy man", "old wizard", "elven ranger", "cyberpunk hacker",
-    "knight in armor", "cat", "fox", "robot", "astronaut", "steampunk inventor"
+    "knight in armor", "orange cat", "brown fox", "good robot", "bad robot", "astronaut",
+    "cosmonaut", "steampunk inventor"
   ]
 }
