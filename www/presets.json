@@ -1,4 +1,11 @@
 {
+  "modelBuckets": {
+    "reliable": [
+      "stable_diffusion", "Dreamshaper", "Anything Diffusion",
+      "Deliberate", "SDXL 1.0", "Realistic Vision", "Juggernaut XL", "AbsoluteReality"
+    ],
+    "unstable": []
+  },
   "version": 1,
   "presets": [
     {
