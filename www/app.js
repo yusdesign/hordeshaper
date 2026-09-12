@@ -64,8 +64,7 @@ function wireListeners() {
   $('resHeight').addEventListener('input', updateResHint);
   $('modelReliableSelect').addEventListener('change', updateResHint);
   $('modelUnstableSelect').addEventListener('change', updateResHint);
-
-  
+  $('downloadBtn').addEventListener('click', downloadImage);
 }
 
 // ---- presets ----
@@ -369,6 +368,64 @@ function pollJob(id) {
       stopPolling('Poll error: ' + e.message);
     }
   }, POLL_INTERVAL_MS);
+}
+
+// ---- download image ----
+async function downloadImage() {
+  const src = $('resultImg').src;
+  if (!src) return flash('Nothing to save');
+  const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
+
+  // Capacitor path
+  if (window.Capacitor?.isNativePlatform?.()) {
+    try {
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      const { Share } = window.Capacitor.Plugins;
+
+      // fetch remote image → base64
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const base64 = await blobToBase64(blob);
+
+      const saved = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Documents,
+        recursive: true
+      });
+
+      // offer share sheet so user can put it anywhere
+      await Share.share({
+        title: 'Horde Shaper result',
+        url: saved.uri,
+        dialogTitle: 'Save image'
+      });
+      flash('Saved');
+    } catch (e) {
+      console.error(e);
+      flash('Save failed: ' + e.message);
+    }
+    return;
+  }
+
+  // Browser fallback — plain anchor download
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = filename;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  flash('Downloaded');
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
 }
 
 // ---- recipes ----
