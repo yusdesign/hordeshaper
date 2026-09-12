@@ -50,7 +50,7 @@
       "model": "Dreamshaper",
       "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
       "fragments": {
-        "subject": "portrait of a {subject}",
+        "subject": "drawing of a {subject}",
         "style": "watercolor painting, soft washes, paper texture",
         "framing": "bust shot, centered",
         "background": "white paper background",
