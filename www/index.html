@@ -25,6 +25,26 @@
   </section>
 
   <section class="card">
+  <label>Resolution</label>
+  <div class="row">
+    <select id="resPresetSelect">
+      <option value="512x512">512 × 512 (fast icon)</option>
+      <option value="512x768">512 × 768 (portrait)</option>
+      <option value="768x512">768 × 512 (landscape)</option>
+      <option value="768x768">768 × 768 (SD 1.5 max)</option>
+      <option value="832x1216">832 × 1216 (SDXL portrait)</option>
+      <option value="1024x1024">1024 × 1024 (SDXL square)</option>
+      <option value="custom">custom…</option>
+    </select>
+  </div>
+  <div class="row" id="customResRow" hidden>
+    <input id="resWidth" type="number" min="64" max="2048" step="64" placeholder="width" />
+    <input id="resHeight" type="number" min="64" max="2048" step="64" placeholder="height" />
+  </div>
+  <small class="hint" id="resHint"></small>
+</section>
+
+  <section class="card">
     <label for="seedInput">Seed <small>(blank = random)</small></label>
     <input id="seedInput" type="number" placeholder="random" />
   </section>
