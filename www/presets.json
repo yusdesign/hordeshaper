@@ -47,6 +47,21 @@
       "negative": "photo, photograph, painting, color, gradient, blurry, soft shading, airbrush, smooth, digital art, watercolor, 3d render, photorealistic, mood, atmosphere, soft focus"
     },
     {
+      "id": "etching-expressive",
+      "name": "🖋 Etching — Expressive",
+      "model": "Dreamshaper",
+      "params": { "width": 512, "height": 512, "steps": 28, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "ink drawing",
+        "subject": "{subject}",
+        "style": "scratchboard, crosshatching, flowing linework, William Blake, Aubrey Beardsley",
+        "framing": "centered, single subject",
+        "background": "plain paper",
+        "quality": "fine lines, stark black and white, no midtones, sharp edges"
+      },
+      "negative": "photo, photograph, painting, color, gradient, blurry, soft shading, airbrush, smooth, watercolor, 3d render, photorealistic, midtones, greyscale"
+    },
+    {
       "id": "anime-avatar",
       "name": "🎭 Anime Avatar",
       "model": "Anything Diffusion",
