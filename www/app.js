@@ -163,7 +163,7 @@ async function onGenerate(reuseSeed = false) {
   const apiKey = localStorage.getItem(LS.apiKey) || '0000000000';
 
   try {
-    const res = await fetch(`${}/generate/async`, {
+    const res = await fetch(`${HORDE}/generate/async`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -186,7 +186,7 @@ function pollJob(id) {
   if (polling) clearInterval(polling);
   polling = setInterval(async () => {
     try {
-      const st = await fetch(`${}/generate/check/${id}`).then(r => r.json());
+      const st = await fetch(`${HORDE}/generate/check/${id}`).then(r => r.json());
       if (st.wait_time) $('statusLine').textContent = `Queued… ~${Math.round(st.wait_time)}s`;
       if (st.is_possible === false) {
         clearInterval(polling);
@@ -196,7 +196,7 @@ function pollJob(id) {
       }
       if (st.done) {
         clearInterval(polling);
-        const status = await fetch(`${}/generate/status/${id}`).then(r => r.json());
+        const status = await fetch(`}/generate/status/${id}`).then(r => r.json());
         const gen = status.generations?.[0];
         if (!gen) throw new Error('no generation in status');
         $('resultImg').src = gen.img;
