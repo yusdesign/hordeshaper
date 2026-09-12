@@ -12,23 +12,29 @@ const $ = (id) => document.getElementById(id);
 
 // ---- boot ----
 (async function init() {
-  presetsDoc = await fetch('presets.json').then(r => r.json());
-  buildPresetSelect();
-  buildSubjectList();
-  loadSettings();
-  loadModels(); // fire-and-forget, fills settings dropdown
-
-  $('presetSelect').addEventListener('change', onPresetChange);
-  $('subjectInput').addEventListener('input', renderPrompt);
-  $('seedInput').addEventListener('input', renderPrompt);
-  $('copyPromptBtn').addEventListener('click', copyPrompt);
-  $('generateBtn').addEventListener('click', onGenerate);
-  $('rerunBtn').addEventListener('click', () => onGenerate(true));
-  $('saveRecipeBtn').addEventListener('click', saveRecipe);
-  $('settingsBtn').addEventListener('click', () => $('settingsDialog').showModal());
-  $('saveSettingsBtn').addEventListener('click', saveSettings);
-
-  onPresetChange(); // initial render
+  try {
+    presetsDoc = await fetch('presets.json').then(r => r.json());
+    buildPresetSelect();
+    buildSubjectList();
+    loadSettings();
+    loadModels(); // fire-and-forget, fills settings dropdown
+  
+    $('presetSelect').addEventListener('change', onPresetChange);
+    $('subjectInput').addEventListener('input', renderPrompt);
+    $('seedInput').addEventListener('input', renderPrompt);
+    $('copyPromptBtn').addEventListener('click', copyPrompt);
+    $('generateBtn').addEventListener('click', onGenerate);
+    $('rerunBtn').addEventListener('click', () => onGenerate(true));
+    $('saveRecipeBtn').addEventListener('click', saveRecipe);
+    $('settingsBtn').addEventListener('click', () => $('settingsDialog').showModal());
+    $('saveSettingsBtn').addEventListener('click', saveSettings);
+  
+    onPresetChange(); // initial render
+    } catch (e) {
+      console.error('init failed:', e);
+      document.body.insertAdjacentHTML('afterbegin',
+        `<div style="color:#f66;padding:12px">Init error: ${e.message}</div>`);
+  }
 })();
 
 // ---- presets ----
