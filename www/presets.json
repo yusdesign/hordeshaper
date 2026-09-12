@@ -32,6 +32,21 @@
       "negative": "photo, photograph, painting, oil painting, color, gradient, blurry, soft shading, airbrush, smooth, digital art, watercolor, 3d render, photorealistic, smooth, cloud, soft focus"
     },
     {
+      "id": "etching-technical",
+      "name": "📐 Etching — Technical",
+      "model": "Anything Diffusion",
+      "params": { "width": 512, "height": 512, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "engraving",
+        "subject": "{subject}",
+        "style": "technical illustration, 19th century scientific plate, ruled hatching, precise linework, 0.1mm pen",
+        "framing": "centered, orthographic view, on plain background",
+        "background": "off-white paper with subtle aging",
+        "quality": "hairline strokes, uniform line weight, monochrome, sharp focus"
+      },
+      "negative": "photo, photograph, painting, color, gradient, blurry, soft shading, airbrush, smooth, digital art, watercolor, 3d render, photorealistic, mood, atmosphere, soft focus"
+    },
+    {
       "id": "anime-avatar",
       "name": "🎭 Anime Avatar",
       "model": "Anything Diffusion",
