@@ -9,6 +9,9 @@ const LS = {
 let presetsDoc = null;
 let currentPreset = null;
 
+let state = { fragments: [], negative: [] };
+let rawMode = false;
+
 let reliableModels = [];
 let unstableModels = [];
 
@@ -43,7 +46,9 @@ const $ = (id) => document.getElementById(id);
 
 function wireListeners() {
   $('presetSelect').addEventListener('change', onPresetChange);
-  $('subjectInput').addEventListener('input', renderPrompt);
+  // $('subjectInput').addEventListener('input', renderPrompt);
+  $('subjectInput').addEventListener('input', resetFragments);
+  
   $('seedInput').addEventListener('input', renderPrompt);
   $('copyPromptBtn').addEventListener('click', copyPrompt);
   $('generateBtn').addEventListener('click', () => onGenerate(false));
@@ -65,6 +70,22 @@ function wireListeners() {
   $('modelReliableSelect').addEventListener('change', updateResHint);
   $('modelUnstableSelect').addEventListener('change', updateResHint);
   $('downloadBtn').addEventListener('click', downloadImage);
+
+  $('addChipBtn').addEventListener('click', () => {
+    state.fragments.push('new fragment');
+    renderChips();
+    renderPrompt();
+  });
+  $('resetChipsBtn').addEventListener('click', resetFragments);
+  $('promptModeBtn').addEventListener('click', () => {
+    rawMode = !rawMode;
+    $('promptChips').hidden     = rawMode;
+    $('negativeChips').hidden   = rawMode;
+    $('addChipBtn').hidden      = rawMode;
+    $('promptPreview').hidden   = !rawMode;
+    $('negativePreview').hidden = !rawMode;
+    $('promptModeBtn').textContent = rawMode ? 'chips' : 'raw';
+  });
 }
 
 // ---- presets ----
@@ -91,35 +112,104 @@ function buildSubjectList() {
 }
 
 function onPresetChange() {
-  const sel = $('presetSelect');
-  currentPreset = presetsDoc.presets.find(p => p.id === sel.value);
-  localStorage.setItem(LS.lastPreset, sel.value);
-  renderPrompt();
+  currentPreset = presetsDoc.presets.find(p => p.id === $('presetSelect').value);
+  localStorage.setItem(LS.lastPreset, $('presetSelect').value);
+  resetFragments();
   refreshModelAvatar();
 }
 
-// ---- prompt building ----
-function buildPrompt() {
-  if (!currentPreset) return '';
+function fragmentsFromPreset() {
+  if (!currentPreset) return [];
   const subject = $('subjectInput').value.trim() || 'a person';
   const f = currentPreset.fragments;
   return [
-    f.subject.replace('{subject}', subject),
+    f.medium   ? f.medium                       : null,
+    f.subject  ? f.subject.replace('{subject}', subject) : null,
     f.style,
     f.framing,
     f.background,
     f.quality
-  ].filter(Boolean).join(', ');
+  ].filter(Boolean);
+}
+
+function negativeFromPreset() {
+  return (currentPreset?.negative || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function resetFragments() {
+  state.fragments = fragmentsFromPreset();
+  state.negative  = negativeFromPreset();
+  renderChips();
+  renderPrompt();
+}
+
+function renderChips() {
+  renderChipRow($('promptChips'),   state.fragments, v => { state.fragments = v; renderChips(); renderPrompt(); });
+  renderChipRow($('negativeChips'), state.negative,  v => { state.negative  = v; renderChips(); renderPrompt(); });
+}
+
+function renderChipRow(container, arr, onChange) {
+  container.innerHTML = '';
+  arr.forEach((text, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+
+    const span = document.createElement('span');
+    span.textContent = text;
+    span.title = 'Tap to edit';
+    span.addEventListener('click', () => {
+      const inp = document.createElement('input');
+      inp.value = text;
+      chip.replaceChild(inp, span);
+      inp.focus();
+      inp.select();
+
+      const commit = () => {
+        const v = inp.value.trim();
+        if (v) arr[i] = v;
+        else arr.splice(i, 1);
+        onChange(arr);
+      };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { inp.blur(); }
+        if (e.key === 'Escape') { onChange(arr); }  // discard
+      });
+    });
+
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.setAttribute('aria-label', 'Remove');
+    x.addEventListener('click', () => {
+      arr.splice(i, 1);
+      onChange(arr);
+    });
+
+    chip.append(span, x);
+    container.appendChild(chip);
+  });
+  if (!arr.length) {
+    const empty = document.createElement('span');
+    empty.style.cssText = 'color:var(--muted);font-size:12px;padding:4px 6px';
+    empty.textContent = '(empty — tap + to add)';
+    container.appendChild(empty);
+  }
+}
+
+// ---- prompt building ----
+function buildPrompt() {
+  return state.fragments.filter(Boolean).join(', ');
 }
 
 function renderPrompt() {
-  if (!currentPreset) return;
-  $('promptPreview').value = buildPrompt();
-  $('negativePreview').value = currentPreset.negative || '';
+  $('promptPreview').value  = state.fragments.join(', ');
+  $('negativePreview').value = state.negative.join(', ');
 }
 
 async function copyPrompt() {
-  const text = $('promptPreview').value;
+  const text = state.fragments.join(', ');
   try {
     await navigator.clipboard.writeText(text);
     flash('Prompt copied');
@@ -264,15 +354,13 @@ async function onGenerate(reuseSeed = false) {
   if (reuseSeed && $('resultSeed').textContent !== '–') seed = $('resultSeed').textContent;
 
   const payload = {
-    prompt: buildPrompt(),
-    negative_prompt: currentPreset.negative || '',
+    prompt: state.fragments.join(', '),
+    negative_prompt: state.negative.join(', '),
     params: { ...params, seed: seed ? String(seed) : undefined },
     models: [model],
     nsfw: false,
     r2: true,
-    shared: false,
-    // optional: if you want upscaling
-    // post_processing: ['RealESRGAN_x4plus']
+    shared: false
   };
 
   const apiKey = localStorage.getItem(LS.apiKey) || '0000000000';
@@ -418,8 +506,8 @@ function saveRecipe() {
   const recipes = JSON.parse(localStorage.getItem(LS.recipes) || '[]');
   recipes.push({
     preset: currentPreset.id,
-    prompt: $('promptPreview').value,
-    negative: $('negativePreview').value,
+    prompt: state.fragments.join(', '),
+    negative: state.negative.join(', '),
     params: currentPreset.params,
     model: $('resultModel').textContent,
     seed: $('resultSeed').textContent,
