@@ -3,6 +3,7 @@
   "appName": "Horde Shaper",
   "webDir": "www",
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
   }
 }
