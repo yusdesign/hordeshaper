@@ -158,7 +158,7 @@ function saveSettings() {
   const chosen = $('modelUnstableSelect').value || $('modelReliableSelect').value || '';
   localStorage.setItem(LS.model, chosen);
   refreshModelAvatar();
-  flash('Settings saved');
+  $('settingsDialog').close();   // ← close after saving
 }
 
 async function loadModels() {
