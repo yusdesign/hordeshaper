@@ -33,6 +33,30 @@ button {
   flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
   background: #232834; color: var(--fg); font: inherit; cursor: pointer;
 }
+.model-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+.model-preview img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #11141a;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+.model-preview span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+dialog label { margin-top: 12px; }
+dialog label:first-of-type { margin-top: 0; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 button.danger { background: #7a2020; border-color: #7a2020; color: #fff; }
