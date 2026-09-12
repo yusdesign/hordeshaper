@@ -22,6 +22,35 @@ header {
 h1 { font-size: 17px; margin: 0; }
 main { padding: 12px; display: grid; gap: 12px; max-width: 640px; margin: 0 auto; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.prompt-header { display: flex; justify-content: space-between; align-items: center; }
+button.ghost { flex: 0 0 auto; padding: 6px 10px; background: transparent; }
+button.ghost.small { font-size: 12px; padding: 4px 8px; margin-top: 6px; flex: 0 0 auto; }
+.chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 6px; min-height: 32px;
+  padding: 6px; background: #11141a;
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #232834; border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 8px;
+  font-size: 12px; color: var(--fg); max-width: 100%;
+}
+.chip span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 220px; cursor: text;
+}
+.chip input {
+  all: unset; font: inherit; color: var(--fg);
+  background: transparent; border: none; padding: 0;
+  min-width: 80px; max-width: 260px;
+}
+.chip button {
+  all: unset; cursor: pointer; line-height: 1;
+  padding: 0 2px; color: var(--muted); font-size: 14px;
+}
+.chip button:hover { color: #f66; }
 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
 label small { opacity: .7; }
 select, input, textarea {
