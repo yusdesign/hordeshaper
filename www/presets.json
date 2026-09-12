@@ -4,7 +4,7 @@
       "stable_diffusion", "Dreamshaper", "Anything Diffusion",
       "Deliberate", "SDXL 1.0", "Realistic Vision", "Juggernaut XL", "AbsoluteReality"
     ],
-    "unstable": []
+    "unstable": ["stable_diffusion_2.1", "sd_xl_refiner", "pixart"]
   },
   "modelAvatars": {
     "stable_diffusion": "avatars/stable_diffusion.svg",
