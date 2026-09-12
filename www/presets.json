@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "anime-avatar",
+      "name": "🎭 Anime Avatar",
+      "model": "Anything Diffusion",
+      "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "portrait of a {subject}",
+        "style": "anime style, cel shading, clean lines",
+        "framing": "close-up, centered, face fills frame",
+        "background": "simple pastel background",
+        "quality": "detailed eyes, sharp focus, best quality"
+      },
+      "negative": "blurry, deformed, extra fingers, text, watermark, low quality, bad anatomy"
+    },
+    {
+      "id": "realistic-bust",
+      "name": "🧑 Realistic Bust",
+      "model": "Deliberate",
+      "params": { "width": 512, "height": 768, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "portrait of a {subject}",
+        "style": "photorealistic, cinematic",
+        "framing": "head and shoulders, centered",
+        "background": "blurred bokeh background",
+        "quality": "detailed face, sharp focus, 4k, natural skin texture"
+      },
+      "negative": "blurry, deformed, cartoon, text, watermark, low quality, bad anatomy"
+    },
+    {
+      "id": "watercolor-portrait",
+      "name": "🎨 Watercolor Portrait",
+      "model": "Dreamshaper",
+      "params": { "width": 512, "height": 512, "steps": 25, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "portrait of a {subject}",
+        "style": "watercolor painting, soft washes, paper texture",
+        "framing": "bust shot, centered",
+        "background": "white paper background",
+        "quality": "delicate brushwork, artistic, sharp focus"
+      },
+      "negative": "blurry, deformed, photo, text, watermark, low quality"
+    },
+    {
+      "id": "pixel-icon",
+      "name": "👾 Pixel Icon",
+      "model": "stable_diffusion",
+      "params": { "width": 512, "height": 512, "steps": 20, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "pixel art icon of a {subject}",
+        "style": "8-bit pixel art, retro game sprite, limited palette",
+        "framing": "centered, square composition",
+        "background": "solid dark background",
+        "quality": "crisp pixels, clean edges"
+      },
+      "negative": "blurry, smooth, photo, text, watermark, low quality"
+    },
+    {
+      "id": "fantasy-character",
+      "name": "🐉 Fantasy Character",
+      "model": "Dreamshaper",
+      "params": { "width": 512, "height": 768, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "fantasy portrait of a {subject}",
+        "style": "digital painting, epic fantasy art, dramatic lighting",
+        "framing": "head and shoulders, centered",
+        "background": "misty forest background",
+        "quality": "intricate details, sharp focus, masterpiece"
+      },
+      "negative": "blurry, deformed, modern clothing, text, watermark, low quality"
+    }
+  ],
+  "subjects": [
+    "happy woman", "happy man", "old wizard", "elven ranger", "cyberpunk hacker",
+    "knight in armor", "cat", "fox", "robot", "astronaut", "steampunk inventor"
+  ]
+}
