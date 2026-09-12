@@ -61,7 +61,17 @@
     <h2>Settings</h2>
     <label for="apiKeyInput">Horde API key <small>(blank = anonymous)</small></label>
     <input id="apiKeyInput" placeholder="0000000000" />
-    <label for="modelsSelect">Preferred model <small>(overrides preset)</small></label>
+    <!-- label for="modelsSelect">Preferred model <small>(overrides preset)</small></label -->
+    <label>Model</label>
+    <div class="row">
+      <select id="modelReliableSelect">
+        <option value="">— reliable (from preset) —</option>
+      </select>
+      <select id="modelUnstableSelect">
+        <option value="">— unstable / testing —</option>
+      </select>
+    </div>
+    <small class="hint">Unstable = not on your reliable list, or count = 0. Expect stalls.</small>
     <select id="modelsSelect"><option value="">— use preset —</option></select>
     <menu>
       <button value="cancel">Cancel</button>
