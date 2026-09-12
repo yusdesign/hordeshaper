@@ -8,6 +8,12 @@ const LS = {
 let presetsDoc = null;
 let currentPreset = null;
 
+let polling = null;
+let currentJobId = null;
+
+const POLL_LIMIT = 120;        // ~6 minutes at 3s
+const POLL_INTERVAL_MS = 3000;
+
 const $ = (id) => document.getElementById(id);
 
 // ---- boot ----
@@ -28,6 +34,7 @@ const $ = (id) => document.getElementById(id);
     $('saveRecipeBtn').addEventListener('click', saveRecipe);
     $('settingsBtn').addEventListener('click', () => $('settingsDialog').showModal());
     $('saveSettingsBtn').addEventListener('click', saveSettings);
+    $('cancelBtn').addEventListener('click', cancelCurrentJob);
   
     onPresetChange(); // initial render
     } catch (e) {
@@ -184,36 +191,74 @@ async function onGenerate(reuseSeed = false) {
   }
 }
 
-function pollJob(id) {
+async function cancelCurrentJob() {
+  if (!currentJobId) return;
+  try {
+    const apiKey = localStorage.getItem(LS.apiKey) || '0000000000';
+    await fetch(`${HORDE}/generate/status/${currentJobId}`, {
+      method: 'DELETE',
+      headers: { 'apikey': apiKey, 'Client-Agent': 'HordeShaper:1.0:github.com/yusdesign' }
+    });
+  } catch (e) { console.warn('cancel failed', e); }
   if (polling) clearInterval(polling);
+  polling = null;
+  $('cancelBtn').hidden = true;
+  $('statusLine').textContent = 'Cancelled.';
+  $('generateBtn').disabled = false;
+}
+
+function stopPolling(statusText) {
+  if (polling) clearInterval(polling);
+  polling = null;
+  currentJobId = null;
+  $('cancelBtn').hidden = true;
+  $('generateBtn').disabled = false;
+  if (statusText) $('statusLine').textContent = statusText;
+}
+
+function pollJob(id) {
+  currentJobId = id;
+  if (polling) clearInterval(polling);
+  $('cancelBtn').hidden = false;
+  let checks = 0;
+
   polling = setInterval(async () => {
+    checks++;
+    if (checks > POLL_LIMIT) {
+      stopPolling('Timed out (~6 min). Job may still finish — try Cancel then Generate again.');
+      return;
+    }
     try {
       const st = await fetch(`${HORDE}/generate/check/${id}`).then(r => r.json());
-      if (st.wait_time) $('statusLine').textContent = `Queued… ~${Math.round(st.wait_time)}s`;
-      if (st.is_possible === false) {
-        clearInterval(polling);
-        $('statusLine').textContent = 'Job impossible (bad model or params).';
-        $('generateBtn').disabled = false;
-        return;
+      console.log('[check]', st);
+
+      if (st.faulted)                        return stopPolling('Job faulted on worker. Retry or pick another model.');
+      if (st.is_possible === false)          return stopPolling('No worker can run this model/params. Pick another model.');
+
+      if (st.might_stall || (st.eligible_workers === 0 && checks > 5)) {
+        $('statusLine').textContent = `Stalling — no eligible workers (${checks}/${POLL_LIMIT}). Cancel to bail.`;
+      } else if (st.wait_time) {
+        $('statusLine').textContent = `Queued… ~${Math.round(st.wait_time)}s (${checks}/${POLL_LIMIT})`;
       }
+
       if (st.done) {
-        clearInterval(polling);
+        clearInterval(polling); polling = null;
+        $('statusLine').textContent = 'Fetching result…';
         const status = await fetch(`${HORDE}/generate/status/${id}`).then(r => r.json());
+        console.log('[status]', status);
         const gen = status.generations?.[0];
         if (!gen) throw new Error('no generation in status');
         $('resultImg').src = gen.img;
         $('resultSeed').textContent = gen.seed;
         $('resultModel').textContent = gen.model;
         $('seedInput').value = gen.seed;
-        $('statusLine').textContent = 'Done';
-        $('generateBtn').disabled = false;
+        stopPolling('Done');
       }
     } catch (e) {
-      clearInterval(polling);
-      $('statusLine').textContent = 'Error: ' + e.message;
-      $('generateBtn').disabled = false;
+      console.error('poll failed:', e);
+      stopPolling('Poll error: ' + e.message);
     }
-  }, 3000);
+  }, POLL_INTERVAL_MS);
 }
 
 // ---- recipes ----
