@@ -378,31 +378,17 @@ async function downloadImage() {
   const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
 
   if (window.Capacitor?.isNativePlatform?.()) {
+    const { Filesystem, Directory, Share } = window.Capacitor.Plugins;
     try {
-      const { Filesystem, Directory } = window.Capacitor.Plugins;
-      const { Share } = window.Capacitor.Plugins;
-
-      const res = await fetch(src);
-      if (!res.ok) throw new Error(`fetch ${res.status}`);
-      const blob = await res.blob();
-      const base64 = await blobToBase64(blob);
-
-      // Write to Cache — no permissions needed, auto-cleaned by Android
-      const saved = await Filesystem.writeFile({
-        path: filename,
-        data: base64,
+      const saved = await Filesystem.downloadFile({
+        url: src,
+        path: `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`,
         directory: Directory.Cache
       });
-
-      await Share.share({
-        title: 'Horde Shaper',
-        text: `seed ${$('resultSeed').textContent || '?'}`,
-        url: saved.uri,
-        dialogTitle: 'Save or share image'
-      });
+      await Share.share({ url: saved.path, title: 'Horde Shaper' });
     } catch (e) {
-      console.error('share failed', e);
-      flash('Share failed: ' + e.message);
+      console.error(e);
+      flash('Save failed: ' + e.message);
     }
     return;
   }
