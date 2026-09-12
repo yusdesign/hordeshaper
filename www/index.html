@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>hordeshaper is a Horde Shaper</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+  <h1>Horde Shaper</h1>
+  <button id="settingsBtn" aria-label="Settings">⚙️</button>
+</header>
+
+<main>
+  <section class="card">
+    <label for="presetSelect">Preset</label>
+    <select id="presetSelect"></select>
+  </section>
+
+  <section class="card">
+    <label for="subjectInput">Subject</label>
+    <input id="subjectInput" list="subjectList" placeholder="e.g. grotesk cyborg" />
+    <datalist id="subjectList"></datalist>
+  </section>
+
+  <section class="card">
+    <label for="seedInput">Seed <small>(blank = random)</small></label>
+    <input id="seedInput" type="number" placeholder="random" />
+  </section>
+
+  <section class="card">
+    <label>Prompt preview</label>
+    <textarea id="promptPreview" readonly rows="6"></textarea>
+    <label>Negative</label>
+    <textarea id="negativePreview" readonly rows="3"></textarea>
+    <div class="row">
+      <button id="copyPromptBtn">Copy prompt</button>
+      <button id="generateBtn" class="primary">Generate</button>
+    </div>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <label>Result</label>
+    <img id="resultImg" alt="generated" />
+    <div class="meta">
+      <span>seed: <b id="resultSeed">–</b></span>
+      <span>model: <b id="resultModel">–</b></span>
+    </div>
+    <div class="row">
+      <button id="rerunBtn">Rerun same seed</button>
+      <button id="saveRecipeBtn">Save recipe</button>
+    </div>
+    <p id="statusLine" class="status"></p>
+  </section>
+</main>
+
+<dialog id="settingsDialog">
+  <form method="dialog">
+    <h2>Settings</h2>
+    <label for="apiKeyInput">Horde API key <small>(blank = anonymous)</small></label>
+    <input id="apiKeyInput" placeholder="0000000000" />
+    <label for="modelsSelect">Preferred model <small>(overrides preset)</small></label>
+    <select id="modelsSelect"><option value="">— use preset —</option></select>
+    <menu>
+      <button value="cancel">Cancel</button>
+      <button id="saveSettingsBtn" value="save" class="primary">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
