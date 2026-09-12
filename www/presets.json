@@ -85,7 +85,21 @@
         "quality": "intricate details, sharp focus, masterpiece"
       },
       "negative": "blurry, deformed, modern clothing, text, watermark, low quality"
-    }
+    },
+    {
+      "id": "sdxl-portrait",
+      "name": "✨ SDXL Portrait (hi-res)",
+      "model": "SDXL 1.0",
+      "params": { "width": 1024, "height": 1024, "steps": 30, "cfg_scale": 6, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "subject": "portrait of a {subject}",
+        "style": "photorealistic, cinematic, ultra detailed",
+        "framing": "close-up, centered",
+        "background": "blurred studio background",
+        "quality": "8k, sharp focus, professional photography"
+      },
+      "negative": "blurry, deformed, text, watermark, low quality, bad anatomy"
+    }    
   ],
   "subjects": [
     "happy woman", "happy man", "old wizard", "elven ranger", "cyberpunk hacker",
