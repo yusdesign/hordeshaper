@@ -377,26 +377,27 @@ async function downloadImage() {
 
   const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
 
-  // Native Android: Share sheet (user picks Save to Files, Photos, Drive, etc.)
   if (window.Capacitor?.isNativePlatform?.()) {
     try {
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
       const { Share } = window.Capacitor.Plugins;
 
-      // Horde serves images from R2 with CORS enabled, so fetch works in WebView.
       const res = await fetch(src);
       if (!res.ok) throw new Error(`fetch ${res.status}`);
       const blob = await res.blob();
-
-      // @capacitor/share needs a URI. On Android we can pass a content://
-      // or file:// URI. Easiest cross-version path: convert to a data URL
-      // and let Capacitor's Share plugin handle writing it.
       const base64 = await blobToBase64(blob);
-      const dataUrl = `data:${blob.type || 'image/webp'};base64,${base64}`;
+
+      // Write to Cache — no permissions needed, auto-cleaned by Android
+      const saved = await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Cache
+      });
 
       await Share.share({
         title: 'Horde Shaper',
         text: `seed ${$('resultSeed').textContent || '?'}`,
-        url: dataUrl,
+        url: saved.uri,
         dialogTitle: 'Save or share image'
       });
     } catch (e) {
@@ -406,7 +407,7 @@ async function downloadImage() {
     return;
   }
 
-  // Browser fallback — direct download
+  // Browser fallback
   const a = document.createElement('a');
   a.href = src;
   a.download = filename;
