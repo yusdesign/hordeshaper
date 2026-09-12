@@ -117,21 +117,23 @@ function saveSettings() {
 
 async function loadModels() {
   try {
-    const models = await fetch(`${HORDE}/models`).then(r => r.json());
+    const res = await fetch('https://stablehorde.net/api/v2/status/models?type=image');
+    if (!res.ok) throw new Error(`models ${res.status}`);
+    const models = await res.json();          // array now
     const sel = $('modelsSelect');
     const pending = sel.dataset.pending || localStorage.getItem(LS.model) || '';
-    // keep first option
     sel.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
     for (const m of models) {
-      if (m.type !== 'text') continue; // image models only
-      if (m.name.toLowerCase().includes('nsfw')) continue; // filter for MVP
+      if (m.type && m.type !== 'image') continue;
+      if (m.name.toLowerCase().includes('nsfw')) continue;
       const o = document.createElement('option');
-      o.value = m.name; o.textContent = m.name;
+      o.value = m.name;
+      o.textContent = `${m.name}  (${m.count})`;
       sel.appendChild(o);
     }
     if (pending) sel.value = pending;
   } catch (e) {
-    console.warn('model list failed', e);
+    console.warn('model list failed:', e);
   }
 }
 
@@ -168,7 +170,7 @@ async function onGenerate(reuseSeed = false) {
       headers: {
         'Content-Type': 'application/json',
         'apikey': apiKey,
-        'Client-Agent': 'PromptBuilder:1.0:(local)'
+        'Client-Agent': 'HordeShaper:1.0:github.com/yusdesign'
       },
       body: JSON.stringify(payload)
     });
