@@ -1,9 +1,10 @@
 {
-  "appId": "net.example.hordeshaper",
+  "appId": "net.yusdesign.hordeshaper",
   "appName": "Horde Shaper",
   "webDir": "www",
   "android": {
     "allowMixedContent": false,
-    "webContentsDebuggingEnabled": false
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#0f1115"
   }
 }
