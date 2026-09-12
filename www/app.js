@@ -54,6 +54,7 @@ function wireListeners() {
   $('saveSettingsBtn').addEventListener('click', saveSettings);
   $('modelReliableSelect').addEventListener('change', refreshModelAvatar);
   $('modelUnstableSelect').addEventListener('change', refreshModelAvatar);
+  $('closeSettingsBtn').addEventListener('click', () => $('settingsDialog').close());
 }
 
 // ---- presets ----
