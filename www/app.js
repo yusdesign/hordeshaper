@@ -55,6 +55,17 @@ function wireListeners() {
   $('modelReliableSelect').addEventListener('change', refreshModelAvatar);
   $('modelUnstableSelect').addEventListener('change', refreshModelAvatar);
   $('closeSettingsBtn').addEventListener('click', () => $('settingsDialog').close());
+  $('resPresetSelect').addEventListener('change', () => {
+  $('customResRow').hidden = $('resPresetSelect').value !== 'custom';
+    updateResHint();
+    renderPrompt();
+  });
+  $('resWidth').addEventListener('input', updateResHint);
+  $('resHeight').addEventListener('input', updateResHint);
+  $('modelReliableSelect').addEventListener('change', updateResHint);
+  $('modelUnstableSelect').addEventListener('change', updateResHint);
+
+  
 }
 
 // ---- presets ----
@@ -147,6 +158,30 @@ function chosenModel(preset) {
   return uns || rel || localStorage.getItem(LS.model) || preset.model;
 }
 
+function currentResolution() {
+  const v = $('resPresetSelect').value;
+  if (v === 'custom') {
+    return {
+      width:  parseInt($('resWidth').value, 10) || 512,
+      height: parseInt($('resHeight').value, 10) || 512
+    };
+  }
+  const [w, h] = v.split('x').map(Number);
+  return { width: w, height: h };
+}
+
+function updateResHint() {
+  const { width, height } = currentResolution();
+  const model = chosenModel(currentPreset) || '';
+  const isSDXL = /xl|sdxl/i.test(model);
+  const maxSide = Math.max(width, height);
+  let hint = '';
+  if (isSDXL && maxSide < 1024) hint = 'SDXL models want ≥1024 on the long side.';
+  else if (!isSDXL && maxSide > 768) hint = '⚠ SD 1.5 models degrade above 768 — expect doubles.';
+  if (width % 64 !== 0 || height % 64 !== 0) hint += ' Sizes should be multiples of 64.';
+  $('resHint').textContent = hint.trim();
+}
+
 // ---- settings ----
 function loadSettings() {
   $('apiKeyInput').value = localStorage.getItem(LS.apiKey) || '';
@@ -223,7 +258,8 @@ async function onGenerate(reuseSeed = false) {
   $('statusLine').textContent = 'Submitting…';
 
   const model = chosenModel(currentPreset);
-  const params = { ...currentPreset.params };
+  const { width, height } = currentResolution();
+  const params = { ...currentPreset.params, width, height };
 
   let seed = $('seedInput').value.trim();
   if (reuseSeed && $('resultSeed').textContent !== '–') seed = $('resultSeed').textContent;
@@ -235,7 +271,9 @@ async function onGenerate(reuseSeed = false) {
     models: [model],
     nsfw: false,
     r2: true,
-    shared: false
+    shared: false,
+    // optional: if you want upscaling
+    // post_processing: ['RealESRGAN_x4plus']
   };
 
   const apiKey = localStorage.getItem(LS.apiKey) || '0000000000';
