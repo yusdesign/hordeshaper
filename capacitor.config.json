@@ -6,5 +6,12 @@
     "allowMixedContent": false,
     "webContentsDebuggingEnabled": false,
     "backgroundColor": "#0f1115"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0f1115",
+      "overlaysWebView": false
+    }
   }
 }
