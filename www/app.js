@@ -109,6 +109,23 @@ async function copyPrompt() {
   }
 }
 
+function avatarFor(modelName) {
+  if (!modelName) return 'avatars/default.svg';
+  const map = presetsDoc.modelAvatars || {};
+  if (map[modelName]) return map[modelName];
+  const key = Object.keys(map).find(k =>
+    modelName.toLowerCase().startsWith(k.toLowerCase()));
+  return key ? map[key] : 'avatars/default.svg';
+}
+
+function refreshModelAvatar() {
+  const name = $('modelUnstableSelect').value
+            || $('modelReliableSelect').value
+            || currentPreset?.model || '';
+  $('modelAvatar').src = avatarFor(name);
+  $('modelAvatarName').textContent = name || '— preset default —';
+}
+
 function chosenModel(preset) {
   const uns = $('modelUnstableSelect').value;
   const rel = $('modelReliableSelect').value;
