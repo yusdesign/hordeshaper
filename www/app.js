@@ -111,7 +111,7 @@ function saveSettings() {
 
 async function loadModels() {
   try {
-    const models = await fetch(`${}/models`).then(r => r.json());
+    const models = await fetch(`${HORDE}/models`).then(r => r.json());
     const sel = $('modelsSelect');
     const pending = sel.dataset.pending || localStorage.getItem(LS.model) || '';
     // keep first option
