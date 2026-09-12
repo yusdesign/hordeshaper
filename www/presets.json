@@ -17,6 +17,21 @@
   "version": 1,
   "presets": [
     {
+      "id": "etching-classic",
+      "name": "🖋 Etching — Classic",
+      "model": "Anything Diffusion",
+      "params": { "width": 512, "height": 512, "steps": 30, "cfg_scale": 7, "sampler_name": "k_euler_a" },
+      "fragments": {
+        "medium": "copperplate engraving",
+        "subject": "{subject}",
+        "style": "fine parallel hatching, dense crosshatching, ink on paper, in the style of Gustave Doré",
+        "framing": "centered, single subject, vignette composition",
+        "background": "plain cream paper",
+        "quality": "hairline strokes, precise linework, monochrome, sharp focus"
+      },
+      "negative": "photo, photograph, painting, oil painting, color, gradient, blurry, soft shading, airbrush, smooth, digital art, watercolor, 3d render, photorealistic, smooth, cloud, soft focus"
+    },
+    {
       "id": "anime-avatar",
       "name": "🎭 Anime Avatar",
       "model": "Anything Diffusion",
