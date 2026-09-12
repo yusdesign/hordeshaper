@@ -59,9 +59,10 @@
 <dialog id="settingsDialog">
   <form method="dialog">
     <h2>Settings</h2>
+
     <label for="apiKeyInput">Horde API key <small>(blank = anonymous)</small></label>
     <input id="apiKeyInput" placeholder="0000000000" />
-    <!-- label for="modelsSelect">Preferred model <small>(overrides preset)</small></label -->
+
     <label>Model</label>
     <div class="row">
       <select id="modelReliableSelect">
@@ -76,6 +77,7 @@
       <span id="modelAvatarName">— preset default —</span>
     </div>
     <small class="hint">Unstable = not on your reliable list, or count = 0. Expect stalls.</small>
+
     <menu>
       <button value="cancel">Cancel</button>
       <button id="saveSettingsBtn" value="save" class="primary">Save</button>
