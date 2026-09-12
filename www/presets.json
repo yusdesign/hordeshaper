@@ -6,6 +6,14 @@
     ],
     "unstable": []
   },
+  "modelAvatars": {
+    "stable_diffusion": "avatars/stable_diffusion.svg",
+    "Dreamshaper": "avatars/dreamshaper.svg",
+    "Anything Diffusion": "avatars/anything.svg",
+    "Deliberate": "avatars/deliberate.svg",
+    "SDXL 1.0": "avatars/sdxl.svg",
+    "Realistic Vision": "avatars/realistic-vision.svg"
+  },
   "version": 1,
   "presets": [
     {
