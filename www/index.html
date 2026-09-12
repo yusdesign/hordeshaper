@@ -53,12 +53,22 @@
   </section>
 
   <section class="card">
-    <label>Prompt preview</label>
-    <textarea id="promptPreview" readonly rows="6"></textarea>
+    <div class="prompt-header">
+      <label>Prompt</label>
+      <button id="promptModeBtn" type="button" class="ghost">raw</button>
+    </div>
+  
+    <div id="promptChips" class="chips"></div>
+    <button id="addChipBtn" type="button" class="ghost small">+ add fragment</button>
+    <textarea id="promptPreview" readonly rows="5" hidden></textarea>
+  
     <label>Negative</label>
-    <textarea id="negativePreview" readonly rows="3"></textarea>
+    <div id="negativeChips" class="chips"></div>
+    <textarea id="negativePreview" readonly rows="3" hidden></textarea>
+  
     <div class="row">
       <button id="copyPromptBtn">Copy prompt</button>
+      <button id="resetChipsBtn" type="button">Reset</button>
       <button id="generateBtn" class="primary">Generate</button>
     </div>
   </section>
