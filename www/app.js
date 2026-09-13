@@ -472,29 +472,30 @@ async function downloadImage() {
     const Share      = Plugins.Share;
     const Directory  = Filesystem?.Directory
                     || Plugins.Directory
-                    || { Cache: 'CACHE', Documents: 'DOCUMENTS', Data: 'DATA' };
-
-    console.log('[save] plugins:', {
-      Filesystem: !!Filesystem,
-      Share: !!Share,
-      Directory
-    });
+                    || { Cache: 'CACHE' };
 
     if (!Filesystem || !Share) {
       return flash('Native plugins missing — check capacitor.plugins.json');
     }
 
     try {
-      const saved = await Filesystem.downloadFile({
-        url: src,
+      // Native fetch (via CapacitorHttp). No CORS, follows redirects,
+      // handles the R2 query string fine.
+      const res = await fetch(src);
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
+      const blob = await res.blob();
+      const base64 = await blobToBase64(blob);
+
+      const saved = await Filesystem.writeFile({
         path: filename,
+        data: base64,
         directory: Directory.Cache
       });
 
       await Share.share({
         title: 'Horde Shaper',
         text: `seed ${$('resultSeed').textContent || '?'}`,
-        url: saved.path,
+        url: saved.uri,
         dialogTitle: 'Save or share image'
       });
       flash('Saved');
