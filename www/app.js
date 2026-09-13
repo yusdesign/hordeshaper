@@ -465,18 +465,42 @@ async function downloadImage() {
 
   const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
 
+  // Native Android path
   if (window.Capacitor?.isNativePlatform?.()) {
-    const { Filesystem, Directory, Share } = window.Capacitor.Plugins;
+    const Plugins   = window.Capacitor.Plugins || {};
+    const Filesystem = Plugins.Filesystem;
+    const Share      = Plugins.Share;
+    const Directory  = Filesystem?.Directory
+                    || Plugins.Directory
+                    || { Cache: 'CACHE', Documents: 'DOCUMENTS', Data: 'DATA' };
+
+    console.log('[save] plugins:', {
+      Filesystem: !!Filesystem,
+      Share: !!Share,
+      Directory
+    });
+
+    if (!Filesystem || !Share) {
+      return flash('Native plugins missing — check capacitor.plugins.json');
+    }
+
     try {
       const saved = await Filesystem.downloadFile({
         url: src,
-        path: `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`,
+        path: filename,
         directory: Directory.Cache
       });
-      await Share.share({ url: saved.path, title: 'Horde Shaper' });
+
+      await Share.share({
+        title: 'Horde Shaper',
+        text: `seed ${$('resultSeed').textContent || '?'}`,
+        url: saved.path,
+        dialogTitle: 'Save or share image'
+      });
+      flash('Saved');
     } catch (e) {
-      console.error(e);
-      flash('Save failed: ' + e.message);
+      console.error('[save] failed:', e);
+      flash('Save failed: ' + (e?.message || e));
     }
     return;
   }
