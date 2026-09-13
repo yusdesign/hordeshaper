@@ -12,6 +12,9 @@
       "style": "DARK",
       "backgroundColor": "#0f1115",
       "overlaysWebView": false
+    },
+    "CapacitorHttp": {
+      "enabled": true
     }
   }
 }
