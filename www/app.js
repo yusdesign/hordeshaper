@@ -355,8 +355,6 @@ function clearLocalData() {
 }
 
 // ---------------- queue status ----------------
-let queueCache = [];
-
 async function refreshQueueStatus() {
   const el = $('queueStatus');
   if (!el) return;
