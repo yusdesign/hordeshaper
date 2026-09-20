@@ -138,6 +138,26 @@ button.ghost.small { font-size: 12px; padding: 4px 8px; margin-top: 6px; flex: 0
 .queue-status.bad    .queue-dot { background: #f87171; }
 .queue-text { color: var(--muted); }
 
+/* mode toggle */
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mode-toggle .mode {
+  padding: 10px;
+  border-radius: 8px;
+  background: #232834;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.mode-toggle .mode.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* model preview (existing) */
 .model-preview {
   display: flex; align-items: center; gap: 10px;
@@ -154,10 +174,17 @@ button.ghost.small { font-size: 12px; padding: 4px 8px; margin-top: 6px; flex: 0
 
 /* seed walk grid */
 .seed-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr);
-  gap: 6px; margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
 }
-.seed-grid button { padding: 8px 4px; font-size: 12px; flex: unset; }
+.seed-grid button {
+  padding: 10px 6px;
+  font-size: 12px;
+  flex: unset;
+  min-height: 44px;   /* Android touch target minimum */
+}
 .seed-grid button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 dialog label { margin-top: 12px; }
