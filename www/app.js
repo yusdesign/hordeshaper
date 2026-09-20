@@ -134,6 +134,20 @@ function wireListeners() {
     $('accountDialog').close();
   });
   $('clearDataBtn').addEventListener('click', clearLocalData);
+
+  document.querySelectorAll('.mode-toggle .mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (genMode === btn.dataset.mode) return;
+      genMode = btn.dataset.mode;
+      document.querySelectorAll('.mode-toggle .mode').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      $('modeHint').textContent = genMode === 'inpaint'
+        ? 'Pick an inpainting model. On Tab 4 you\'ll be able to load a base image and mask.'
+        : 'Generate from prompt. Pick any normal model.';
+      // re-filter the model lists without resetting anything else
+      loadModels();
+    });
+  });
 }
 
 // ---------------- presets ----------------
@@ -694,17 +708,3 @@ function flash(msg) {
   line.textContent = msg;
   setTimeout(() => { if (line.textContent === msg) line.textContent = ''; }, 1800);
 }
-
-document.querySelectorAll('.mode-toggle .mode').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (genMode === btn.dataset.mode) return;
-    genMode = btn.dataset.mode;
-    document.querySelectorAll('.mode-toggle .mode').forEach(b =>
-      b.classList.toggle('active', b === btn));
-    $('modeHint').textContent = genMode === 'inpaint'
-      ? 'Pick an inpainting model. On Tab 4 you'll be able to load a base image and mask.'
-      : 'Generate from prompt. Pick any normal model.';
-    // re-filter the model lists without resetting anything else
-    loadModels();
-  });
-});
