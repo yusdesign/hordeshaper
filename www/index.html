@@ -161,6 +161,12 @@
 <dialog id="accountDialog">
   <div class="dialog-body">
     <h2>Account</h2>
+    <div id="onboardingNote" class="onboarding" hidden>
+      <p><strong>Welcome to Horde Shaper.</strong></p>
+      <p>This app sends your prompts to <a href="https://stablehorde.net" target="_blank" rel="noopener">AI Horde</a> — a free, crowdsourced image generator. You don't need to sign up, but anonymous requests are slow.</p>
+      <p>If you register a free key at <a href="https://stablehorde.net/register" target="_blank" rel="noopener">stablehorde.net/register</a> and paste it below, your generations will be much faster and you'll get priority in the queue.</p>
+      <p>You can skip this and change it later via ⚙️ in the top right.</p>
+    </div>
 
     <label for="apiKeyInput">Horde API key <small>(blank = anonymous)</small></label>
     <input id="apiKeyInput" placeholder="0000000000" />
