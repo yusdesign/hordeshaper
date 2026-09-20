@@ -16,14 +16,7 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--bg); z-index: 5;
-  padding-top: calc(14px + env(safe-area-inset-top, 0px));
-}
-h1 { font-size: 17px; margin: 0; }
-/* main { padding: 12px; display: grid; gap: 12px; max-width: 640px; margin: 0 auto; } */
+h1 { font-size: 14px; margin: 0; }
 
 /* ---------- app header ---------- */
 .app-header {
@@ -189,10 +182,6 @@ button.ghost.small { font-size: 12px; padding: 4px 8px; margin-top: 6px; flex: 0
 
 dialog label { margin-top: 12px; }
 dialog label:first-of-type { margin-top: 0; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-button.danger { background: #7a2020; border-color: #7a2020; color: #fff; }
-#settingsBtn { flex: 0 0 auto; padding: 8px 10px; }
 
 /* result */
 img#resultImg { width: 100%; border-radius: 10px; display: block; }
