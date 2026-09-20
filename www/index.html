@@ -3,118 +3,171 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Horde Shaper</title>
 <link rel="icon" type="image/svg+xml" href="icons/hordeshaper.svg" />
-<link rel="apple-touch-icon" href="icons/icon-192.png" />
-<meta name="theme-color" content="#0c5460" />
-<title>hordeshaper is a Horde Shaper</title>
+<meta name="theme-color" content="#0f1115" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<header>
+
+<header class="app-header">
   <h1>Horde Shaper</h1>
-  <button id="settingsBtn" aria-label="Settings">⚙️</button>
+  <button id="settingsBtn" aria-label="Account" title="Account">⚙️</button>
 </header>
 
+<nav class="tab-bar" role="tablist">
+  <button class="tab active" data-tab="preset"    role="tab">🎭<span>Preset</span></button>
+  <button class="tab"        data-tab="subject"   role="tab">✏️<span>Subject</span></button>
+  <button class="tab"        data-tab="compose"   role="tab">🧩<span>Compose</span></button>
+  <button class="tab"        data-tab="generate"  role="tab">⚡<span>Generate</span>
+    <i class="tab-badge" id="resultBadge" hidden></i>
+  </button>
+</nav>
+
 <main>
-  <section class="card">
-    <label for="presetSelect">Preset</label>
-    <select id="presetSelect"></select>
-  </section>
 
-  <section class="card">
-    <label for="subjectInput">Subject</label>
-    <input id="subjectInput" list="subjectList" placeholder="e.g. grotesk cyborg" />
-    <datalist id="subjectList"></datalist>
-  </section>
-
-  <section class="card">
-  <label>Resolution</label>
-  <div class="row">
-    <select id="resPresetSelect">
-      <option value="512x512">512 × 512 (fast icon)</option>
-      <option value="512x768">512 × 768 (portrait)</option>
-      <option value="768x512">768 × 512 (landscape)</option>
-      <option value="768x768">768 × 768 (SD 1.5 max)</option>
-      <option value="832x1216">832 × 1216 (SDXL portrait)</option>
-      <option value="1024x1024">1024 × 1024 (SDXL square)</option>
-      <option value="custom">custom…</option>
-    </select>
-  </div>
-  <div class="row" id="customResRow" hidden>
-    <input id="resWidth" type="number" min="64" max="2048" step="64" placeholder="width" />
-    <input id="resHeight" type="number" min="64" max="2048" step="64" placeholder="height" />
-  </div>
-  <small class="hint" id="resHint"></small>
-</section>
-
-  <section class="card">
-    <label for="seedInput">Seed <small>(blank = random)</small></label>
-    <input id="seedInput" type="number" placeholder="random" />
-  </section>
-
-  <section class="card">
-    <div class="prompt-header">
-      <label>Prompt</label>
-      <button id="promptModeBtn" type="button" class="ghost">raw</button>
+  <!-- ============ TAB 1: PRESET ============ -->
+  <section class="tab-panel active" data-panel="preset">
+    <div class="card">
+      <label for="presetSelect">Preset</label>
+      <select id="presetSelect"></select>
     </div>
-  
-    <div id="promptChips" class="chips"></div>
-    <button id="addChipBtn" type="button" class="ghost small">+ add fragment</button>
-    <textarea id="promptPreview" readonly rows="5" hidden></textarea>
-  
-    <label>Negative</label>
-    <div id="negativeChips" class="chips"></div>
-    <textarea id="negativePreview" readonly rows="3" hidden></textarea>
-  
+
+    <div class="card">
+      <label>Model</label>
+      <div class="row">
+        <select id="modelReliableSelect">
+          <option value="">— reliable (from preset) —</option>
+        </select>
+        <select id="modelUnstableSelect">
+          <option value="">— unstable / testing —</option>
+        </select>
+      </div>
+      <div class="model-preview">
+        <img id="modelAvatar" src="avatars/default.svg" alt="" />
+        <span id="modelAvatarName">— preset default —</span>
+      </div>
+      <small class="hint">Unstable = not on your reliable list, or count = 0. Expect stalls.</small>
+    </div>
+
+    <div class="card">
+      <label>Queue availability</label>
+      <div id="queueStatus" class="queue-status">
+        <span class="queue-dot"></span>
+        <span class="queue-text">— checking —</span>
+      </div>
+      <small class="hint">Live worker count for the selected model. Updates every 30s.</small>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2: SUBJECT ============ -->
+  <section class="tab-panel" data-panel="subject">
+    <div class="card">
+      <label for="subjectInput">Subject</label>
+      <input id="subjectInput" list="subjectList" placeholder="e.g. orange cat, elven ranger, single oak leaf" />
+      <datalist id="subjectList"></datalist>
+      <small class="hint">The variable content. Preset fills the rest.</small>
+    </div>
+
+    <div class="card">
+      <label for="seedInput">Seed <small>(blank = random)</small></label>
+      <input id="seedInput" type="number" placeholder="random" />
+      <div class="row">
+        <button id="seedRandomBtn" type="button">🎲 Random</button>
+        <button id="seedWalkBtn" type="button">±2 walk</button>
+      </div>
+      <div id="seedWalkGrid" class="seed-grid" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3: COMPOSE ============ -->
+  <section class="tab-panel" data-panel="compose">
+    <div class="card">
+      <div class="prompt-header">
+        <label>Positive prompt</label>
+        <button id="promptModeBtn" type="button" class="ghost">raw</button>
+      </div>
+      <div id="promptChips" class="chips"></div>
+      <button id="addPromptChipBtn" type="button" class="ghost small">+ Add Fragment</button>
+      <textarea id="promptPreview" readonly rows="5" hidden></textarea>
+    </div>
+
+    <div class="card">
+      <label>Negative prompt</label>
+      <div id="negativeChips" class="chips"></div>
+      <button id="addNegativeChipBtn" type="button" class="ghost small">+ Add Fragment</button>
+      <textarea id="negativePreview" readonly rows="3" hidden></textarea>
+    </div>
+
+    <div class="card">
+      <label>Resolution</label>
+      <select id="resPresetSelect">
+        <option value="512x512">512 × 512 (fast icon)</option>
+        <option value="512x768">512 × 768 (portrait)</option>
+        <option value="768x512">768 × 512 (landscape)</option>
+        <option value="768x768">768 × 768 (SD 1.5 max)</option>
+        <option value="832x1216">832 × 1216 (SDXL portrait)</option>
+        <option value="1024x1024">1024 × 1024 (SDXL square)</option>
+        <option value="custom">custom…</option>
+      </select>
+      <div class="row" id="customResRow" hidden>
+        <input id="resWidth"  type="number" min="64" max="2048" step="64" placeholder="width" />
+        <input id="resHeight" type="number" min="64" max="2048" step="64" placeholder="height" />
+      </div>
+      <small class="hint" id="resHint"></small>
+    </div>
+
     <div class="row">
       <button id="copyPromptBtn">Copy prompt</button>
-      <button id="resetChipsBtn" type="button">Reset</button>
-      <button id="generateBtn" class="primary">Generate</button>
+      <button id="resetChipsBtn" type="button">Reset fragments</button>
     </div>
   </section>
 
-  <section class="card" id="resultCard" hidden>
-    <label>Result</label>
-    <img id="resultImg" alt="generated" />
-    <div class="meta">
-      <span>seed: <b id="resultSeed">–</b></span>
-      <span>model: <b id="resultModel">–</b></span>
+  <!-- ============ TAB 4: GENERATE ============ -->
+  <section class="tab-panel" data-panel="generate">
+    <div class="card">
+      <button id="generateBtn" class="primary big">⚡ Generate</button>
+      <p id="statusLine" class="status"></p>
     </div>
-    <div class="action-grid">
-      <button id="rerunBtn">Rerun</button>
-      <button id="saveRecipeBtn">Save recipe</button>
-      <button id="downloadBtn">Save image</button>
-      <button id="cancelBtn" class="danger" hidden>Cancel</button>
-    </div>
-    <p id="statusLine" class="status"></p>
+
+    <section class="card" id="resultCard" hidden>
+      <label>Result</label>
+      <img id="resultImg" alt="generated" />
+      <div class="meta">
+        <span>seed: <b id="resultSeed">–</b></span>
+        <span>model: <b id="resultModel">–</b></span>
+      </div>
+      <div class="action-grid">
+        <button id="rerunBtn">Rerun</button>
+        <button id="saveRecipeBtn">Save recipe</button>
+        <button id="downloadBtn">Save image</button>
+        <button id="cancelBtn" class="danger" hidden>Cancel</button>
+      </div>
+    </section>
   </section>
+
 </main>
 
-<dialog id="settingsDialog">
-  <div>
-    <h2>Settings</h2>
+<!-- ============ ACCOUNT MODAL ============ -->
+<dialog id="accountDialog">
+  <div class="dialog-body">
+    <h2>Account</h2>
 
     <label for="apiKeyInput">Horde API key <small>(blank = anonymous)</small></label>
     <input id="apiKeyInput" placeholder="0000000000" />
+    <small class="hint">
+      Anonymous mode is slow. Get a free key at
+      <a href="https://stablehorde.net/register" target="_blank" rel="noopener">stablehorde.net/register</a>.
+    </small>
 
-    <label>Model</label>
-    <div class="row">
-      <select id="modelReliableSelect">
-        <option value="">— reliable (from preset) —</option>
-      </select>
-      <select id="modelUnstableSelect">
-        <option value="">— unstable / testing —</option>
-      </select>
-    </div>
-    <div class="model-preview">
-      <img id="modelAvatar" src="avatars/default.svg" alt="" />
-      <span id="modelAvatarName">— preset default —</span>
-    </div>
-    <small class="hint">Unstable = not on your reliable list, or count = 0. Expect stalls.</small>
+    <hr />
+
+    <button id="clearDataBtn" type="button" class="danger">Clear all local data</button>
+    <small class="hint">Removes API key, saved recipes, and cached preferences.</small>
 
     <menu>
-      <button id="saveSettingsBtn" type="button" class="primary">Save</button>
-      <button type="button" id="closeSettingsBtn">Cancel</button>
+      <button id="closeAccountBtn" type="button">Cancel</button>
+      <button id="saveAccountBtn" type="button" class="primary">Save</button>
     </menu>
   </div>
 </dialog>
