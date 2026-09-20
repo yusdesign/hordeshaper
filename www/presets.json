@@ -4,14 +4,14 @@
       "stable_diffusion", "Dreamshaper", "Anything Diffusion",
       "Deliberate", "SDXL 1.0", "Realistic Vision", "Juggernaut XL", "AbsoluteReality"
     ],
-    "unstable": ["stable_diffusion_2.1", "sd_xl_refiner", "pixart"],
-    "inpaintModels": [
-      "stable_diffusion_inpainting",
-      "Realistic Vision Inpainting",
-      "Dreamshaper Inpainting",
-      "Anything Diffusion Inpainting"
-    ]
+    "unstable": ["stable_diffusion_2.1", "sd_xl_refiner", "pixart"]
   },
+  "inpaintModels": [
+    "stable_diffusion_inpainting",
+    "Realistic Vision Inpainting",
+    "Dreamshaper Inpainting",
+    "Anything Diffusion Inpainting"
+  ],
   "modelAvatars": {
     "Anything Diffusion": "avatars/anything.svg",
     "stable_diffusion": "avatars/stable_diffusion.svg",
