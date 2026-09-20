@@ -30,8 +30,12 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verify Android SDK (preinstalled on runner)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
 
       - name: Cache npm
         uses: actions/cache@v4
@@ -59,12 +63,6 @@ jobs:
           npm install @capacitor/browser
           npm install @capacitor/status-bar
           npm install @capacitor/core
-
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: apt-${{ runner.os }}-librsvg-imagemagick-v1
 
       - name: Install asset + SVG tooling
         run: |
