@@ -9,32 +9,39 @@ const LS = {
 let presetsDoc = null;
 let currentPreset = null;
 
-let state = { fragments: [], negative: [] };
-let rawMode = false;
-
 let reliableModels = [];
 let unstableModels = [];
 
 let polling = null;
 let currentJobId = null;
+let activeTab = 'preset';
+let lastResultSeen = false;
 
-const POLL_LIMIT = 120;        // ~6 minutes at 3s
+const POLL_LIMIT = 120;
 const POLL_INTERVAL_MS = 3000;
+const QUEUE_REFRESH_MS = 30_000;
+
+// chip state — single source of truth for prompt/negative
+let state = { fragments: [], negative: [] };
+let rawMode = false;
 
 const $ = (id) => document.getElementById(id);
 
-// ---- boot ----
+// ---------------- boot ----------------
 (async function init() {
   try {
-    presetsDoc = await fetch('presets.json').then(r => r.json());
+    presetsDoc = await fetch('presets.json', { cache: 'no-cache' }).then(r => r.json());
     if (!presetsDoc?.presets?.length) throw new Error('no presets in presets.json');
 
     buildPresetSelect();
     buildSubjectList();
     loadSettings();
-    loadModels(); // fire-and-forget
+    loadModels();
+    refreshQueueStatus();
+    setInterval(refreshQueueStatus, QUEUE_REFRESH_MS);
 
     wireListeners();
+    switchTab('preset');
     onPresetChange();
     refreshModelAvatar();
   } catch (e) {
@@ -44,51 +51,85 @@ const $ = (id) => document.getElementById(id);
   }
 })();
 
+// ---------------- tabs ----------------
+function switchTab(id) {
+  activeTab = id;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.dataset.panel === id);
+  });
+  if (id === 'generate' && lastResultSeen) {
+    lastResultSeen = false;
+    $('resultBadge').hidden = true;
+  }
+}
+
+function flashBadge() {
+  if (activeTab !== 'generate') {
+    lastResultSeen = true;
+    $('resultBadge').hidden = false;
+  }
+}
+
+// ---------------- listeners ----------------
 function wireListeners() {
+  // tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => switchTab(t.dataset.tab));
+  });
+
+  // tab 1
   $('presetSelect').addEventListener('change', onPresetChange);
-  // $('subjectInput').addEventListener('input', renderPrompt);
+  $('modelReliableSelect').addEventListener('change', () => { refreshModelAvatar(); refreshQueueStatus(); updateResHint(); });
+  $('modelUnstableSelect').addEventListener('change', () => { refreshModelAvatar(); refreshQueueStatus(); updateResHint(); });
+
+  // tab 2
   $('subjectInput').addEventListener('input', resetFragments);
-  
   $('seedInput').addEventListener('input', renderPrompt);
-  $('copyPromptBtn').addEventListener('click', copyPrompt);
-  $('generateBtn').addEventListener('click', () => onGenerate(false));
-  $('rerunBtn').addEventListener('click', () => onGenerate(true));
-  $('saveRecipeBtn').addEventListener('click', saveRecipe);
-  $('cancelBtn').addEventListener('click', cancelCurrentJob);
-  $('settingsBtn').addEventListener('click', () => $('settingsDialog').showModal());
-  $('saveSettingsBtn').addEventListener('click', saveSettings);
-  $('modelReliableSelect').addEventListener('change', refreshModelAvatar);
-  $('modelUnstableSelect').addEventListener('change', refreshModelAvatar);
-  $('closeSettingsBtn').addEventListener('click', () => $('settingsDialog').close());
-  $('resPresetSelect').addEventListener('change', () => {
-  $('customResRow').hidden = $('resPresetSelect').value !== 'custom';
-    updateResHint();
+  $('seedRandomBtn').addEventListener('click', () => {
+    $('seedInput').value = Math.floor(Math.random() * 2 ** 31);
     renderPrompt();
   });
-  $('resWidth').addEventListener('input', updateResHint);
-  $('resHeight').addEventListener('input', updateResHint);
-  $('modelReliableSelect').addEventListener('change', updateResHint);
-  $('modelUnstableSelect').addEventListener('change', updateResHint);
-  $('downloadBtn').addEventListener('click', downloadImage);
+  $('seedWalkBtn').addEventListener('click', showSeedWalk);
 
-  $('addChipBtn').addEventListener('click', () => {
+  // tab 3
+  $('promptModeBtn').addEventListener('click', toggleRawMode);
+  $('addPromptChipBtn').addEventListener('click', () => {
     state.fragments.push('new fragment');
     renderChips();
     renderPrompt();
   });
-  $('resetChipsBtn').addEventListener('click', resetFragments);
-  $('promptModeBtn').addEventListener('click', () => {
-    rawMode = !rawMode;
-    $('promptChips').hidden     = rawMode;
-    $('negativeChips').hidden   = rawMode;
-    $('addChipBtn').hidden      = rawMode;
-    $('promptPreview').hidden   = !rawMode;
-    $('negativePreview').hidden = !rawMode;
-    $('promptModeBtn').textContent = rawMode ? 'chips' : 'raw';
+  $('addNegativeChipBtn').addEventListener('click', () => {
+    state.negative.push('new negative');
+    renderChips();
+    renderPrompt();
   });
+  $('copyPromptBtn').addEventListener('click', copyPrompt);
+  $('resetChipsBtn').addEventListener('click', resetFragments);
+  $('resPresetSelect').addEventListener('change', () => {
+    $('customResRow').hidden = $('resPresetSelect').value !== 'custom';
+    updateResHint();
+  });
+  $('resWidth').addEventListener('input', updateResHint);
+  $('resHeight').addEventListener('input', updateResHint);
+
+  // tab 4
+  $('generateBtn').addEventListener('click', () => onGenerate(false));
+  $('rerunBtn').addEventListener('click', () => onGenerate(true));
+  $('saveRecipeBtn').addEventListener('click', saveRecipe);
+  $('downloadBtn').addEventListener('click', downloadImage);
+  $('cancelBtn').addEventListener('click', cancelCurrentJob);
+
+  // account dialog
+  $('settingsBtn').addEventListener('click', () => $('accountDialog').showModal());
+  $('saveAccountBtn').addEventListener('click', saveAccount);
+  $('closeAccountBtn').addEventListener('click', () => $('accountDialog').close());
+  $('clearDataBtn').addEventListener('click', clearLocalData);
 }
 
-// ---- presets ----
+// ---------------- presets ----------------
 function buildPresetSelect() {
   const sel = $('presetSelect');
   sel.innerHTML = '';
@@ -116,15 +157,18 @@ function onPresetChange() {
   localStorage.setItem(LS.lastPreset, $('presetSelect').value);
   resetFragments();
   refreshModelAvatar();
+  updateResHint();
+  refreshQueueStatus();
 }
 
+// ---------------- chips / prompt ----------------
 function fragmentsFromPreset() {
   if (!currentPreset) return [];
   const subject = $('subjectInput').value.trim() || 'a person';
   const f = currentPreset.fragments;
   return [
-    f.medium   ? f.medium                       : null,
-    f.subject  ? f.subject.replace('{subject}', subject) : null,
+    f.medium  ? f.medium : null,
+    f.subject ? f.subject.replace('{subject}', subject) : null,
     f.style,
     f.framing,
     f.background,
@@ -162,8 +206,7 @@ function renderChipRow(container, arr, onChange) {
       const inp = document.createElement('input');
       inp.value = text;
       chip.replaceChild(inp, span);
-      inp.focus();
-      inp.select();
+      inp.focus(); inp.select();
 
       const commit = () => {
         const v = inp.value.trim();
@@ -173,8 +216,8 @@ function renderChipRow(container, arr, onChange) {
       };
       inp.addEventListener('blur', commit);
       inp.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { inp.blur(); }
-        if (e.key === 'Escape') { onChange(arr); }  // discard
+        if (e.key === 'Enter') inp.blur();
+        if (e.key === 'Escape') onChange(arr);
       });
     });
 
@@ -182,30 +225,34 @@ function renderChipRow(container, arr, onChange) {
     x.type = 'button';
     x.textContent = '✕';
     x.setAttribute('aria-label', 'Remove');
-    x.addEventListener('click', () => {
-      arr.splice(i, 1);
-      onChange(arr);
-    });
+    x.addEventListener('click', () => { arr.splice(i, 1); onChange(arr); });
 
     chip.append(span, x);
     container.appendChild(chip);
   });
+
   if (!arr.length) {
     const empty = document.createElement('span');
     empty.style.cssText = 'color:var(--muted);font-size:12px;padding:4px 6px';
-    empty.textContent = '(empty — tap + to add)';
+    empty.textContent = '(empty — tap + Add Fragment)';
     container.appendChild(empty);
   }
 }
 
-// ---- prompt building ----
-function buildPrompt() {
-  return state.fragments.filter(Boolean).join(', ');
+function renderPrompt() {
+  $('promptPreview').value   = state.fragments.join(', ');
+  $('negativePreview').value = state.negative.join(', ');
 }
 
-function renderPrompt() {
-  $('promptPreview').value  = state.fragments.join(', ');
-  $('negativePreview').value = state.negative.join(', ');
+function toggleRawMode() {
+  rawMode = !rawMode;
+  $('promptChips').hidden         = rawMode;
+  $('negativeChips').hidden       = rawMode;
+  $('addPromptChipBtn').hidden    = rawMode;
+  $('addNegativeChipBtn').hidden  = rawMode;
+  $('promptPreview').hidden       = !rawMode;
+  $('negativePreview').hidden     = !rawMode;
+  $('promptModeBtn').textContent  = rawMode ? 'chips' : 'raw';
 }
 
 async function copyPrompt() {
@@ -220,13 +267,38 @@ async function copyPrompt() {
   }
 }
 
-// ---- model avatars ----
+// ---------------- resolution ----------------
+function currentResolution() {
+  const v = $('resPresetSelect').value;
+  if (v === 'custom') {
+    return {
+      width:  parseInt($('resWidth').value, 10) || 512,
+      height: parseInt($('resHeight').value, 10) || 512
+    };
+  }
+  const [w, h] = v.split('x').map(Number);
+  return { width: w, height: h };
+}
+
+function updateResHint() {
+  if (!$('resHint')) return;
+  const { width, height } = currentResolution();
+  const model = chosenModel(currentPreset) || '';
+  const isSDXL = /xl|sdxl/i.test(model);
+  const maxSide = Math.max(width, height);
+  let hint = '';
+  if (isSDXL && maxSide < 1024) hint = 'SDXL models want ≥1024 on the long side.';
+  else if (!isSDXL && maxSide > 768) hint = '⚠ SD 1.5 models degrade above 768 — expect doubles.';
+  if (width % 64 !== 0 || height % 64 !== 0) hint += ' Sizes should be multiples of 64.';
+  $('resHint').textContent = hint.trim();
+}
+
+// ---------------- model helpers ----------------
 function avatarFor(modelName) {
   if (!modelName) return 'avatars/default.svg';
   const map = presetsDoc?.modelAvatars || {};
   if (map[modelName]) return map[modelName];
-  const key = Object.keys(map).find(k =>
-    modelName.toLowerCase().startsWith(k.toLowerCase()));
+  const key = Object.keys(map).find(k => modelName.toLowerCase().startsWith(k.toLowerCase()));
   return key ? map[key] : 'avatars/default.svg';
 }
 
@@ -244,52 +316,70 @@ function refreshModelAvatar() {
 function chosenModel(preset) {
   const uns = $('modelUnstableSelect')?.value || '';
   const rel = $('modelReliableSelect')?.value || '';
-  return uns || rel || localStorage.getItem(LS.model) || preset.model;
+  return uns || rel || localStorage.getItem(LS.model) || preset?.model || '';
 }
 
-function currentResolution() {
-  const v = $('resPresetSelect').value;
-  if (v === 'custom') {
-    return {
-      width:  parseInt($('resWidth').value, 10) || 512,
-      height: parseInt($('resHeight').value, 10) || 512
-    };
-  }
-  const [w, h] = v.split('x').map(Number);
-  return { width: w, height: h };
-}
-
-function updateResHint() {
-  const { width, height } = currentResolution();
-  const model = chosenModel(currentPreset) || '';
-  const isSDXL = /xl|sdxl/i.test(model);
-  const maxSide = Math.max(width, height);
-  let hint = '';
-  if (isSDXL && maxSide < 1024) hint = 'SDXL models want ≥1024 on the long side.';
-  else if (!isSDXL && maxSide > 768) hint = '⚠ SD 1.5 models degrade above 768 — expect doubles.';
-  if (width % 64 !== 0 || height % 64 !== 0) hint += ' Sizes should be multiples of 64.';
-  $('resHint').textContent = hint.trim();
-}
-
-// ---- settings ----
+// ---------------- account ----------------
 function loadSettings() {
   $('apiKeyInput').value = localStorage.getItem(LS.apiKey) || '';
-  // model preference is applied after models load, in loadModels()
 }
 
-function saveSettings() {
+function saveAccount() {
   localStorage.setItem(LS.apiKey, $('apiKeyInput').value.trim());
-  const chosen = $('modelUnstableSelect').value || $('modelReliableSelect').value || '';
-  localStorage.setItem(LS.model, chosen);
-  refreshModelAvatar();
-  $('settingsDialog').close();
+  $('accountDialog').close();
+  flash('Account saved');
 }
 
+function clearLocalData() {
+  if (!confirm('Clear API key, recipes, and cached preferences?')) return;
+  Object.values(LS).forEach(k => localStorage.removeItem(k));
+  $('apiKeyInput').value = '';
+  flash('Local data cleared');
+}
+
+// ---------------- queue status ----------------
+let queueCache = [];
+
+async function refreshQueueStatus() {
+  const el = $('queueStatus');
+  if (!el) return;
+  const model = chosenModel(currentPreset);
+  if (!model) {
+    el.className = 'queue-status';
+    el.querySelector('.queue-text').textContent = '— no model —';
+    return;
+  }
+  try {
+    if (!queueCache.length) {
+      const res = await fetch(`${HORDE}/status/models?type=image`);
+      if (!res.ok) throw new Error(res.status);
+      queueCache = await res.json();
+    }
+    const m = queueCache.find(x => x.name === model);
+    if (!m) {
+      el.className = 'queue-status';
+      el.querySelector('.queue-text').textContent = '— unknown model —';
+      return;
+    }
+    const count = m.count || 0;
+    const cls = count >= 3 ? 'good' : count >= 1 ? 'medium' : 'bad';
+    el.className = `queue-status ${cls}`;
+    el.querySelector('.queue-text').textContent =
+      `${count} worker${count === 1 ? '' : 's'} · queue ${m.queued ?? 0}`;
+  } catch (e) {
+    console.warn('queue status failed', e);
+    el.className = 'queue-status';
+    el.querySelector('.queue-text').textContent = '— unavailable —';
+  }
+}
+
+// ---------------- models ----------------
 async function loadModels() {
   try {
     const res = await fetch(`${HORDE}/status/models?type=image`);
     if (!res.ok) throw new Error(`models ${res.status}`);
     const models = await res.json();
+    queueCache = models;
 
     const reliableList = (presetsDoc.modelBuckets?.reliable || []).map(s => s.toLowerCase());
     const isReliable = (name) => {
@@ -317,14 +407,12 @@ async function loadModels() {
 
     for (const m of reliableModels) {
       const o = document.createElement('option');
-      o.value = m.name;
-      o.textContent = `${m.name}  (${m.count})`;
+      o.value = m.name; o.textContent = `${m.name}  (${m.count})`;
       rel.appendChild(o);
     }
     for (const m of unstableModels) {
       const o = document.createElement('option');
-      o.value = m.name;
-      o.textContent = `${m.name}  (${m.count || 0})`;
+      o.value = m.name; o.textContent = `${m.name}  (${m.count || 0})`;
       uns.appendChild(o);
     }
 
@@ -334,15 +422,17 @@ async function loadModels() {
       else if (unstableModels.some(m => m.name === saved)) uns.value = saved;
     }
     refreshModelAvatar();
+    refreshQueueStatus();
   } catch (e) {
     console.warn('model list failed:', e);
   }
 }
 
-// ---- generation ----
+// ---------------- generate ----------------
 async function onGenerate(reuseSeed = false) {
   if (!currentPreset) return;
   $('resultCard').hidden = false;
+  switchTab('generate');
   $('generateBtn').disabled = true;
   $('statusLine').textContent = 'Submitting…';
 
@@ -389,8 +479,7 @@ async function onGenerate(reuseSeed = false) {
 async function cancelCurrentJob() {
   const id = currentJobId;
   if (polling) clearInterval(polling);
-  polling = null;
-  currentJobId = null;
+  polling = null; currentJobId = null;
   $('cancelBtn').hidden = true;
   $('generateBtn').disabled = false;
   $('statusLine').textContent = 'Cancelled.';
@@ -406,8 +495,7 @@ async function cancelCurrentJob() {
 
 function stopPolling(statusText) {
   if (polling) clearInterval(polling);
-  polling = null;
-  currentJobId = null;
+  polling = null; currentJobId = null;
   $('cancelBtn').hidden = true;
   $('generateBtn').disabled = false;
   if (statusText) $('statusLine').textContent = statusText;
@@ -421,19 +509,15 @@ function pollJob(id) {
 
   polling = setInterval(async () => {
     checks++;
-    if (checks > POLL_LIMIT) {
-      stopPolling('Timed out (~6 min). Job may still finish — Cancel and try again.');
-      return;
-    }
+    if (checks > POLL_LIMIT) return stopPolling('Timed out (~6 min). Try Cancel then Generate again.');
     try {
       const st = await fetch(`${HORDE}/generate/check/${id}`).then(r => r.json());
-      console.log('[check]', st);
 
       if (st.faulted)               return stopPolling('Job faulted on worker. Retry or pick another model.');
-      if (st.is_possible === false) return stopPolling('No worker can run this model/params. Pick another model.');
+      if (st.is_possible === false) return stopPolling('No worker can run this model/params.');
 
       if (st.might_stall || (st.eligible_workers === 0 && checks > 5)) {
-        $('statusLine').textContent = `Stalling — no eligible workers (${checks}/${POLL_LIMIT}). Cancel to bail.`;
+        $('statusLine').textContent = `Stalling — no eligible workers (${checks}/${POLL_LIMIT}).`;
       } else if (st.wait_time) {
         $('statusLine').textContent = `Queued… ~${Math.round(st.wait_time)}s (${checks}/${POLL_LIMIT})`;
       }
@@ -442,7 +526,6 @@ function pollJob(id) {
         clearInterval(polling); polling = null;
         $('statusLine').textContent = 'Fetching result…';
         const status = await fetch(`${HORDE}/generate/status/${id}`).then(r => r.json());
-        console.log('[status]', status);
         const gen = status.generations?.[0];
         if (!gen) throw new Error('no generation in status');
         $('resultImg').src = gen.img;
@@ -450,83 +533,15 @@ function pollJob(id) {
         $('resultModel').textContent = gen.model;
         $('seedInput').value = gen.seed;
         stopPolling('Done');
+        flashBadge();
       }
     } catch (e) {
-      console.error('poll failed:', e);
       stopPolling('Poll error: ' + e.message);
     }
   }, POLL_INTERVAL_MS);
 }
 
-// ---- download image ----
-async function downloadImage() {
-  const src = $('resultImg').src;
-  if (!src) return flash('Nothing to save');
-
-  const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
-
-  // Native Android path
-  if (window.Capacitor?.isNativePlatform?.()) {
-    const Plugins   = window.Capacitor.Plugins || {};
-    const Filesystem = Plugins.Filesystem;
-    const Share      = Plugins.Share;
-    const Directory  = Filesystem?.Directory
-                    || Plugins.Directory
-                    || { Cache: 'CACHE' };
-
-    if (!Filesystem || !Share) {
-      return flash('Native plugins missing — check capacitor.plugins.json');
-    }
-
-    try {
-      // Native fetch (via CapacitorHttp). No CORS, follows redirects,
-      // handles the R2 query string fine.
-      const res = await fetch(src);
-      if (!res.ok) throw new Error(`fetch ${res.status}`);
-      const blob = await res.blob();
-      const base64 = await blobToBase64(blob);
-
-      const saved = await Filesystem.writeFile({
-        path: filename,
-        data: base64,
-        directory: Directory.Cache
-      });
-
-      await Share.share({
-        title: 'Horde Shaper',
-        text: `seed ${$('resultSeed').textContent || '?'}`,
-        url: saved.uri,
-        dialogTitle: 'Save or share image'
-      });
-      flash('Saved');
-    } catch (e) {
-      console.error('[save] failed:', e);
-      flash('Save failed: ' + (e?.message || e));
-    }
-    return;
-  }
-
-  // Browser fallback
-  const a = document.createElement('a');
-  a.href = src;
-  a.download = filename;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  flash('Downloaded');
-}
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(',')[1]);
-    r.onerror = reject;
-    r.readAsDataURL(blob);
-  });
-}
-
-// ---- recipes ----
+// ---------------- recipes ----------------
 function saveRecipe() {
   const recipes = JSON.parse(localStorage.getItem(LS.recipes) || '[]');
   recipes.push({
@@ -542,9 +557,86 @@ function saveRecipe() {
   flash('Recipe saved');
 }
 
-// ---- helpers ----
+// ---------------- seed walk ----------------
+function showSeedWalk() {
+  let base = parseInt($('seedInput').value, 10);
+  if (!Number.isFinite(base)) {
+    base = Math.floor(Math.random() * 2 ** 31);
+    $('seedInput').value = base;
+  }
+  const grid = $('seedWalkGrid');
+  grid.innerHTML = '';
+  grid.hidden = false;
+  for (let d = -2; d <= 2; d++) {
+    const s = base + d;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = (d === 0 ? '★ ' : '') + s;
+    if (d === 0) b.classList.add('active');
+    b.addEventListener('click', () => {
+      $('seedInput').value = s;
+      grid.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      renderPrompt();
+    });
+    grid.appendChild(b);
+  }
+}
+
+// ---------------- download ----------------
+async function downloadImage() {
+  const src = $('resultImg').src;
+  if (!src) return flash('Nothing to save');
+  const filename = `hordeshaper-${$('resultSeed').textContent || Date.now()}.webp`;
+
+  if (window.Capacitor?.isNativePlatform?.()) {
+    const Plugins    = window.Capacitor.Plugins || {};
+    const Filesystem = Plugins.Filesystem;
+    const Share      = Plugins.Share;
+    const Directory  = Filesystem?.Directory || Plugins.Directory || { Cache: 'CACHE' };
+    if (!Filesystem || !Share) return flash('Native plugins missing');
+
+    try {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
+      const blob = await res.blob();
+      const base64 = await blobToBase64(blob);
+      const saved = await Filesystem.writeFile({
+        path: filename, data: base64, directory: Directory.Cache
+      });
+      await Share.share({
+        title: 'Horde Shaper',
+        text: `seed ${$('resultSeed').textContent || '?'}`,
+        url: saved.uri,
+        dialogTitle: 'Save or share image'
+      });
+      flash('Saved');
+    } catch (e) {
+      console.error('[save] failed:', e);
+      flash('Save failed: ' + (e?.message || e));
+    }
+    return;
+  }
+
+  const a = document.createElement('a');
+  a.href = src; a.download = filename; a.target = '_blank';
+  document.body.appendChild(a); a.click(); a.remove();
+  flash('Downloaded');
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+// ---------------- helpers ----------------
 function flash(msg) {
   const line = $('statusLine');
+  if (!line) return;
   line.textContent = msg;
-  setTimeout(() => { if (line.textContent === msg) line.textContent = ''; }, 1500);
+  setTimeout(() => { if (line.textContent === msg) line.textContent = ''; }, 1800);
 }
