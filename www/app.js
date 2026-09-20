@@ -9,6 +9,9 @@ const LS = {
 let presetsDoc = null;
 let currentPreset = null;
 
+let genMode = 'normal';   // 'normal' | 'inpaint'
+let queueCache = [];
+
 let reliableModels = [];
 let unstableModels = [];
 
@@ -44,6 +47,7 @@ const $ = (id) => document.getElementById(id);
     switchTab('preset');
     onPresetChange();
     refreshModelAvatar();
+    maybeShowOnboarding();
   } catch (e) {
     console.error('init failed:', e);
     document.body.insertAdjacentHTML('afterbegin',
@@ -125,7 +129,10 @@ function wireListeners() {
   // account dialog
   $('settingsBtn').addEventListener('click', () => $('accountDialog').showModal());
   $('saveAccountBtn').addEventListener('click', saveAccount);
-  $('closeAccountBtn').addEventListener('click', () => $('accountDialog').close());
+  $('closeAccountBtn').addEventListener('click', () => {
+    localStorage.setItem('hpb.onboarded', '1');
+    $('accountDialog').close();
+  });
   $('clearDataBtn').addEventListener('click', clearLocalData);
 }
 
@@ -313,6 +320,15 @@ function refreshModelAvatar() {
   name.textContent = model || '— preset default —';
 }
 
+function maybeShowOnboarding() {
+  if (localStorage.getItem('hpb.onboarded') === '1') return;
+  // open dialog after a beat so the page paints first
+  setTimeout(() => {
+    $('accountDialog').showModal();
+    $('onboardingNote').hidden = false;
+  }, 300);
+}
+
 function chosenModel(preset) {
   const uns = $('modelUnstableSelect')?.value || '';
   const rel = $('modelReliableSelect')?.value || '';
@@ -326,6 +342,7 @@ function loadSettings() {
 
 function saveAccount() {
   localStorage.setItem(LS.apiKey, $('apiKeyInput').value.trim());
+  localStorage.setItem('hpb.onboarded', '1');
   $('accountDialog').close();
   flash('Account saved');
 }
@@ -375,6 +392,9 @@ async function refreshQueueStatus() {
 
 // ---------------- models ----------------
 async function loadModels() {
+  const prevRel = $('modelReliableSelect').value;
+  const prevUns = $('modelUnstableSelect').value;
+
   try {
     const res = await fetch(`${HORDE}/status/models?type=image`);
     if (!res.ok) throw new Error(`models ${res.status}`);
@@ -387,18 +407,37 @@ async function loadModels() {
       return reliableList.includes(n) || reliableList.some(r => n.startsWith(r));
     };
 
-    const live = models.filter(m =>
+    const isInpaint = (name) =>
+      /inpaint/i.test(name) ||
+      (presetsDoc.inpaintModels || []).some(m =>
+        m.toLowerCase() === name.toLowerCase());
+
+    // base filter: image models, non-NSFW
+    let live = models.filter(m =>
       (!m.type || m.type === 'image') &&
       !m.name.toLowerCase().includes('nsfw')
     );
 
+    // mode filter
+    if (genMode === 'inpaint') {
+      live = live.filter(m => isInpaint(m.name));
+    } else {
+      live = live.filter(m => !isInpaint(m.name));
+    }
+
+    // split by worker availability within the mode
     reliableModels = live
       .filter(m => isReliable(m.name) && (m.count || 0) > 0)
       .sort((a, b) => (b.count || 0) - (a.count || 0));
 
     unstableModels = live
       .filter(m => !isReliable(m.name) || (m.count || 0) === 0)
-      .sort((a, b) => (b.count || 0) - (a.count || 0));
+      .sort((a, b) => {
+        const aRel = isReliable(a.name) ? 1 : 0;
+        const bRel = isReliable(b.name) ? 1 : 0;
+        if (aRel !== bRel) return bRel - aRel;
+        return (b.count || 0) - (a.count || 0);
+      });
 
     const rel = $('modelReliableSelect');
     const uns = $('modelUnstableSelect');
@@ -407,22 +446,39 @@ async function loadModels() {
 
     for (const m of reliableModels) {
       const o = document.createElement('option');
-      o.value = m.name; o.textContent = `${m.name}  (${m.count})`;
+      o.value = m.name;
+      o.textContent = `🟢 ${m.name}  (${m.count})`;
       rel.appendChild(o);
     }
     for (const m of unstableModels) {
       const o = document.createElement('option');
-      o.value = m.name; o.textContent = `${m.name}  (${m.count || 0})`;
+      o.value = m.name;
+      const w = m.count || 0;
+      o.textContent = `${w > 0 ? '🟡' : '🔴'} ${m.name}  (${w})`;
       uns.appendChild(o);
     }
 
-    const saved = localStorage.getItem(LS.model);
-    if (saved) {
-      if (reliableModels.some(m => m.name === saved)) rel.value = saved;
-      else if (unstableModels.some(m => m.name === saved)) uns.value = saved;
+    // restore previous selection if it survived the mode filter
+    if (prevRel && reliableModels.some(m => m.name === prevRel)) {
+      $('modelReliableSelect').value = prevRel;
+    } else if (prevRel) {
+      // was selected, gone after mode switch → clear
+      $('modelReliableSelect').value = '';
     }
+    if (prevUns && unstableModels.some(m => m.name === prevUns)) {
+      $('modelUnstableSelect').value = prevUns;
+    } else if (prevUns) {
+      $('modelUnstableSelect').value = '';
+    }
+
+    // fallback: if nothing selected, pick the top reliable one
+    if (!$('modelReliableSelect').value && !$('modelUnstableSelect').value && reliableModels[0]) {
+      $('modelReliableSelect').value = reliableModels[0].name;
+    }
+
     refreshModelAvatar();
     refreshQueueStatus();
+    updateResHint();
   } catch (e) {
     console.warn('model list failed:', e);
   }
@@ -640,3 +696,17 @@ function flash(msg) {
   line.textContent = msg;
   setTimeout(() => { if (line.textContent === msg) line.textContent = ''; }, 1800);
 }
+
+document.querySelectorAll('.mode-toggle .mode').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (genMode === btn.dataset.mode) return;
+    genMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-toggle .mode').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    $('modeHint').textContent = genMode === 'inpaint'
+      ? 'Pick an inpainting model. On Tab 4 you'll be able to load a base image and mask.'
+      : 'Generate from prompt. Pick any normal model.';
+    // re-filter the model lists without resetting anything else
+    loadModels();
+  });
+});
