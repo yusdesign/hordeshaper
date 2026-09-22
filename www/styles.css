@@ -206,3 +206,28 @@ dialog menu button { flex: 1; }
 dialog a { color: var(--accent); }
 
 .hint { display: block; color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.kudos-card {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #11141a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.kudos-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 4px;
+}
+.kudos-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.kudos-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.kudos-card.good .kudos-value { color: #4ade80; }
+.kudos-card.medium .kudos-value { color: #fbbf24; }
+.kudos-card.low .kudos-value { color: #f87171; }
