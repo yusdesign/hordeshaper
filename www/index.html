@@ -117,13 +117,24 @@
         <option value="768x768">768 × 768 (SD 1.5 max)</option>
         <option value="832x1216">832 × 1216 (SDXL portrait)</option>
         <option value="1024x1024">1024 × 1024 (SDXL square)</option>
-        <option value="custom">custom…</option>
+        <option value="custom">User sizes…</option>
       </select>
       <div class="row" id="customResRow" hidden>
         <input id="resWidth"  type="number" min="64" max="2048" step="64" placeholder="width" />
         <input id="resHeight" type="number" min="64" max="2048" step="64" placeholder="height" />
       </div>
       <small class="hint" id="resHint"></small>
+    </div>
+
+    <div class="card">
+      <label class="checkbox-label">
+        <input type="checkbox" id="sharePromptCheckbox" />
+        <span>Share my prompt publicly</span>
+      </label>
+      <small class="hint">
+        Off by default. If enabled, your prompt appears in Horde's public gallery.
+        Your images always stay private.
+      </small>
     </div>
 
     <div class="row">
@@ -134,6 +145,24 @@
 
   <!-- ============ TAB 4: GENERATE ============ -->
   <section class="tab-panel" data-panel="generate">
+
+    <div class="card" id="baseImageCard">
+      <label>Base image <small>(optional — for img2img / inpainting)</small></label>
+      <input type="file" id="baseImageInput" accept="image/png,image/jpeg,image/webp" />
+      <div class="row">
+        <button id="useLastResultBtn" type="button">Use last result</button>
+        <button id="clearBaseImageBtn" type="button">Clear</button>
+      </div>
+      <img id="baseImagePreview" hidden />
+      <small class="hint" id="baseImageInfo">Max 1024 × 1024. Larger images are auto-downscaled.</small>
+      <div class="row" id="denoiseRow" hidden>
+        <label for="denoiseSlider" style="flex:1;margin:0">
+          Strength <small id="denoiseValue">0.60</small>
+        </label>
+        <input type="range" id="denoiseSlider" min="0" max="100" value="60" style="flex:2" />
+      </div>
+    </div>
+
     <div class="card">
       <button id="generateBtn" class="primary big">⚡ Generate</button>
       <p id="statusLine" class="status"></p>
