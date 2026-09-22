@@ -567,7 +567,10 @@ async function loadModels() {
     for (const m of reliableModels) {
       const o = document.createElement('option');
       o.value = m.name;
-      o.textContent = `🟢 ${m.name}  (${m.count})`;
+      const isSDXL = /\bxl\b|sdxl/i.test(m.name);
+      const lowKudos = userKudos > 0 && userKudos < 20;
+      const tag = isSDXL && lowKudos ? ' ⚠ low kudos' : '';
+      o.textContent = `🟢 ${m.name}  (${m.count})${tag}`;
       rel.appendChild(o);
     }
     for (const m of unstableModels) {
@@ -703,11 +706,20 @@ function pollJob(id) {
   currentJobId = id;
   if (polling) clearInterval(polling);
   $('cancelBtn').hidden = false;
+
   let checks = 0;
+  let lastWait = Infinity;
+  let stallChecks = 0;
+  const HARD_LIMIT = 600;        // ~30 min absolute ceiling
+  const STALL_LIMIT = 40;        // ~2 min with no progress → give up
 
   polling = setInterval(async () => {
     checks++;
-    if (checks > POLL_LIMIT) return stopPolling('Timed out (~6 min). Try Cancel then Generate again.');
+
+    if (checks > HARD_LIMIT) {
+      return stopPolling('Timed out after ~30 min. Job may still finish on Horde\'s side.');
+    }
+
     try {
       const st = await fetch(`${HORDE}/generate/check/${id}`).then(r => r.json());
 
@@ -720,10 +732,32 @@ function pollJob(id) {
         return stopPolling(`Not possible: ${reason}`);
       }
 
+      // progress detection
+      const wait = Number(st.wait_time ?? 0);
+      if (wait < lastWait - 1) {
+        stallChecks = 0;   // wait_time dropped → progressing
+      } else if (checks > 5) {
+        stallChecks++;
+      }
+      lastWait = wait;
+
       if (st.might_stall || (st.eligible_workers === 0 && checks > 5)) {
-        $('statusLine').textContent = `Stalling — no eligible workers (${checks}/${POLL_LIMIT}).`;
-      } else if (st.wait_time) {
-        $('statusLine').textContent = `Queued… ~${Math.round(st.wait_time)}s (${checks}/${POLL_LIMIT})`;
+        $('statusLine').textContent =
+          `Stalling — no eligible workers (${checks}/${HARD_LIMIT}). Cancel to bail.`;
+      } else if (wait) {
+        const mins = Math.floor(wait / 60);
+        const secs = Math.round(wait % 60);
+        const eta = mins ? `${mins}m ${secs}s` : `${secs}s`;
+        $('statusLine').textContent =
+          `Queued… ~${eta} (${checks}/${HARD_LIMIT})`;
+      } else {
+        $('statusLine').textContent = `Processing… (${checks}/${HARD_LIMIT})`;
+      }
+
+      if (stallChecks > STALL_LIMIT) {
+        return stopPolling(
+          'No progress for ~2 min. Cancel and try again, or pick a different model.'
+        );
       }
 
       if (st.done) {
@@ -738,6 +772,7 @@ function pollJob(id) {
         $('seedInput').value = gen.seed;
         stopPolling('Done');
         flashBadge();
+        fetchUserKudos();
       }
     } catch (e) {
       stopPolling('Poll error: ' + e.message);
