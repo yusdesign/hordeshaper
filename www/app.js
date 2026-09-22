@@ -20,6 +20,9 @@ let currentJobId = null;
 let activeTab = 'preset';
 let lastResultSeen = false;
 
+let baseImage = null;          // { dataUrl, width, height, downscaled }
+let denoiseStrength = 0.6;
+
 const POLL_LIMIT = 120;
 const POLL_INTERVAL_MS = 3000;
 const QUEUE_REFRESH_MS = 30_000;
@@ -39,6 +42,11 @@ const $ = (id) => document.getElementById(id);
     buildPresetSelect();
     buildSubjectList();
     loadSettings();
+    
+    const scb = $('sharePromptCheckbox');
+    if (scb) scb.checked = localStorage.getItem('hpb.share') === '1';
+    
+    fetchUserKudos();
     loadModels();
     refreshQueueStatus();
     setInterval(refreshQueueStatus, QUEUE_REFRESH_MS);
@@ -48,6 +56,7 @@ const $ = (id) => document.getElementById(id);
     onPresetChange();
     refreshModelAvatar();
     maybeShowOnboarding();
+    renderBaseImagePreview();
   } catch (e) {
     console.error('init failed:', e);
     document.body.insertAdjacentHTML('afterbegin',
@@ -112,12 +121,32 @@ function wireListeners() {
   });
   $('copyPromptBtn').addEventListener('click', copyPrompt);
   $('resetChipsBtn').addEventListener('click', resetFragments);
-  $('resPresetSelect').addEventListener('change', () => {
-    $('customResRow').hidden = $('resPresetSelect').value !== 'custom';
-    updateResHint();
+  // resolution sync
+  $('resPresetSelect').addEventListener('change', syncResolutionUi);
+  $('resWidth').addEventListener('input', onCustomSizeChanged);
+  $('resHeight').addEventListener('input', onCustomSizeChanged);
+
+  // share checkbox
+  const shareCb = $('sharePromptCheckbox');
+  if (shareCb) {
+    shareCb.checked = localStorage.getItem('hpb.share') === '1';
+    shareCb.addEventListener('change', () => {
+      localStorage.setItem('hpb.share', shareCb.checked ? '1' : '0');
+    });
+  }
+
+  // tab 4 — base image
+  $('baseImageInput').addEventListener('change', e => handleBaseImageFile(e.target.files?.[0]));
+  $('useLastResultBtn').addEventListener('click', useLastResultAsBase);
+  $('clearBaseImageBtn').addEventListener('click', () => {
+    baseImage = null;
+    $('baseImageInput').value = '';
+    renderBaseImagePreview();
   });
-  $('resWidth').addEventListener('input', updateResHint);
-  $('resHeight').addEventListener('input', updateResHint);
+  $('denoiseSlider').addEventListener('input', () => {
+    denoiseStrength = parseInt($('denoiseSlider').value, 10) / 100;
+    $('denoiseValue').textContent = denoiseStrength.toFixed(2);
+  });
 
   // tab 4
   $('generateBtn').addEventListener('click', () => onGenerate(false));
@@ -127,7 +156,11 @@ function wireListeners() {
   $('cancelBtn').addEventListener('click', cancelCurrentJob);
 
   // account dialog
-  $('settingsBtn').addEventListener('click', () => $('accountDialog').showModal());
+  // $('settingsBtn').addEventListener('click', () => $('accountDialog').showModal());
+  $('settingsBtn').addEventListener('click', () => {
+    fetchUserKudos();
+    $('accountDialog').showModal();
+  });
   $('saveAccountBtn').addEventListener('click', saveAccount);
   $('closeAccountBtn').addEventListener('click', () => {
     localStorage.setItem('hpb.onboarded', '1');
@@ -291,7 +324,7 @@ async function copyPrompt() {
 // ---------------- resolution ----------------
 function currentResolution() {
   const v = $('resPresetSelect').value;
-  if (v === 'custom') {
+  if (v === 'user') {
     return {
       width:  parseInt($('resWidth').value, 10) || 512,
       height: parseInt($('resHeight').value, 10) || 512
@@ -299,6 +332,28 @@ function currentResolution() {
   }
   const [w, h] = v.split('x').map(Number);
   return { width: w, height: h };
+}
+
+function syncResolutionUi() {
+  const v = $('resPresetSelect').value;
+  $('customResRow').hidden = v !== 'user';
+  if (v !== 'user') {
+    const [w, h] = v.split('x');
+    $('resWidth').value = w;
+    $('resHeight').value = h;
+  }
+  updateResHint();
+}
+
+function onCustomSizeChanged() {
+  const w = parseInt($('resWidth').value, 10);
+  const h = parseInt($('resHeight').value, 10);
+  if (!w || !h) return updateResHint();
+  const key = `${w}x${h}`;
+  const match = [...$('resPresetSelect').options].find(o => o.value === key);
+  $('resPresetSelect').value = match ? key : 'user';
+  $('customResRow').hidden = $('resPresetSelect').value !== 'user';
+  updateResHint();
 }
 
 function updateResHint() {
@@ -354,9 +409,10 @@ function loadSettings() {
   $('apiKeyInput').value = localStorage.getItem(LS.apiKey) || '';
 }
 
-function saveAccount() {
+async function saveAccount() {
   localStorage.setItem(LS.apiKey, $('apiKeyInput').value.trim());
   localStorage.setItem('hpb.onboarded', '1');
+  await fetchUserKudos();
   $('accountDialog').close();
   flash('Account saved');
 }
@@ -399,6 +455,58 @@ async function refreshQueueStatus() {
     console.warn('queue status failed', e);
     el.className = 'queue-status';
     el.querySelector('.queue-text').textContent = '— unavailable —';
+  }
+}
+
+// ----------- kudos card -----------
+let userKudos = 0;
+
+async function fetchUserKudos() {
+  const valueEl = $('kudosValue');
+  const hintEl  = $('kudosHint');
+  const cardEl  = valueEl?.closest('.kudos-card');
+  if (!valueEl || !hintEl) return;
+
+  const key = localStorage.getItem(LS.apiKey) || '';
+  if (!key || key === '0000000000') {
+    userKudos = 0;
+    valueEl.textContent = 'anonymous';
+    hintEl.textContent  = 'Register a free key to earn and spend kudos.';
+    cardEl?.classList.remove('good', 'medium', 'low');
+    return;
+  }
+
+  hintEl.textContent = 'Fetching…';
+  try {
+    const res = await fetch(`${HORDE}/find_user`, {
+      headers: {
+        'apikey': key,
+        'Client-Agent': 'HordeShaper:1.0:github.com/yusdesign'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    userKudos = Number(data.kudos) || 0;
+
+    valueEl.textContent = userKudos.toFixed(0);
+    cardEl?.classList.remove('good', 'medium', 'low');
+    if (userKudos >= 50)       cardEl?.classList.add('good');
+    else if (userKudos >= 15)  cardEl?.classList.add('medium');
+    else                       cardEl?.classList.add('low');
+
+    // what's available at this balance
+    let hint = '';
+    if (userKudos < 15)        hint = 'Below 15 — SDXL blocked, stick to SD 1.5 models.';
+    else if (userKudos < 50)   hint = 'SDXL unlocked (needs ~20+). Queue priority low.';
+    else if (userKudos < 200)  hint = 'Good balance. Normal priority.';
+    else                       hint = 'High priority in queue.';
+    hintEl.textContent = hint;
+  } catch (e) {
+    userKudos = 0;
+    valueEl.textContent = '?';
+    hintEl.textContent = 'Could not fetch — check your API key.';
+    cardEl?.classList.remove('good', 'medium', 'low');
+    console.warn('kudos fetch failed:', e);
   }
 }
 
@@ -504,12 +612,14 @@ async function onGenerate(reuseSeed = false) {
   $('generateBtn').disabled = true;
   $('statusLine').textContent = 'Submitting…';
 
-  const model = chosenModel(currentPreset);
+    const model = chosenModel(currentPreset);
   const { width, height } = currentResolution();
   const params = { ...currentPreset.params, width, height };
 
   let seed = $('seedInput').value.trim();
   if (reuseSeed && $('resultSeed').textContent !== '–') seed = $('resultSeed').textContent;
+
+  const shareFlag = $('sharePromptCheckbox')?.checked || false;
 
   const payload = {
     prompt: state.fragments.join(', '),
@@ -518,8 +628,28 @@ async function onGenerate(reuseSeed = false) {
     models: [model],
     nsfw: false,
     r2: true,
-    shared: false
+    shared: shareFlag
   };
+
+  // base image handling — img2img or inpainting
+  if (baseImage) {
+    // Horde expects base64 without the data URI prefix
+    const raw = baseImage.dataUrl.replace(/^data:[^,]+,/, '');
+    payload.source_image = raw;
+    payload.source_processing = genMode === 'inpaint' ? 'inpainting' : 'img2img';
+    payload.denoising_strength = denoiseStrength;
+
+    if (genMode === 'inpaint') {
+      // no mask editor yet — use the whole image as the mask
+      payload.source_mask = raw;
+    }
+  }
+
+  if (genMode === 'inpaint' && !baseImage) {
+    $('statusLine').textContent = 'Inpainting needs a base image. Upload one or use the last result.';
+    $('generateBtn').disabled = false;
+    return;
+  }
 
   const apiKey = localStorage.getItem(LS.apiKey) || '0000000000';
 
@@ -581,8 +711,14 @@ function pollJob(id) {
     try {
       const st = await fetch(`${HORDE}/generate/check/${id}`).then(r => r.json());
 
-      if (st.faulted)               return stopPolling('Job faulted on worker. Retry or pick another model.');
-      if (st.is_possible === false) return stopPolling('No worker can run this model/params.');
+      if (st.faulted) {
+        const reason = st.faulted_reason || st.message || 'worker crashed';
+        return stopPolling(`Job faulted: ${reason}`);
+      }
+      if (st.is_possible === false) {
+        const reason = st.message || 'no worker can run this model / params';
+        return stopPolling(`Not possible: ${reason}`);
+      }
 
       if (st.might_stall || (st.eligible_workers === 0 && checks > 5)) {
         $('statusLine').textContent = `Stalling — no eligible workers (${checks}/${POLL_LIMIT}).`;
@@ -648,6 +784,106 @@ function showSeedWalk() {
       renderPrompt();
     });
     grid.appendChild(b);
+  }
+}
+
+// ---------------- base image ----------------
+const BASE_MIN_DIM = 256;
+const BASE_MAX_DIM = 1024;
+const BASE_MAX_BYTES = 12 * 1024 * 1024;
+
+async function handleBaseImageFile(file) {
+  if (!file) return;
+  if (file.size > BASE_MAX_BYTES) {
+    return flash(`Image too large (max ${BASE_MAX_BYTES / 1048576} MB)`);
+  }
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    return flash('PNG, JPEG or WebP only');
+  }
+
+  const dataUrl = await fileToDataUrl(file);
+  const img = new Image();
+
+  img.onload = async () => {
+    let finalDataUrl = dataUrl;
+    let finalW = img.width;
+    let finalH = img.height;
+
+    if (img.width < BASE_MIN_DIM || img.height < BASE_MIN_DIM) {
+      return flash(`Min ${BASE_MIN_DIM}×${BASE_MIN_DIM} — got ${img.width}×${img.height}`);
+    }
+
+    // auto-downscale if too big
+    if (img.width > BASE_MAX_DIM || img.height > BASE_MAX_DIM) {
+      const scale = BASE_MAX_DIM / Math.max(img.width, img.height);
+      finalW = Math.round(img.width * scale);
+      finalH = Math.round(img.height * scale);
+      const c = document.createElement('canvas');
+      c.width = finalW; c.height = finalH;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, finalW, finalH);
+      finalDataUrl = c.toDataURL('image/webp', 0.92);
+    }
+
+    baseImage = {
+      dataUrl: finalDataUrl,
+      width: finalW,
+      height: finalH,
+      downscaled: finalW !== img.width || finalH !== img.height
+    };
+    renderBaseImagePreview();
+  };
+
+  img.onerror = () => flash('Could not read image');
+  img.src = dataUrl;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function renderBaseImagePreview() {
+  const img  = $('baseImagePreview');
+  const info = $('baseImageInfo');
+  const row  = $('denoiseRow');
+
+  if (!baseImage) {
+    img.hidden = true;
+    img.removeAttribute('src');
+    info.textContent = 'Max 1024 × 1024. Larger images are auto-downscaled.';
+    row.hidden = true;
+    return;
+  }
+
+  img.src = baseImage.dataUrl;
+  img.hidden = false;
+
+  const dims = `${baseImage.width} × ${baseImage.height}`;
+  info.textContent = baseImage.downscaled
+    ? `${dims} · downscaled to fit`
+    : `${dims} · ready`;
+
+  // show strength slider only in img2img-style modes
+  row.hidden = genMode === 'inpaint' ? false : false; // always show, inpaint uses same slider
+}
+
+async function useLastResultAsBase() {
+  const src = $('resultImg').src;
+  if (!src) return flash('No result yet');
+  try {
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`fetch ${res.status}`);
+    const blob = await res.blob();
+    const ext = blob.type.includes('png') ? 'png' : blob.type.includes('jpeg') ? 'jpg' : 'webp';
+    const file = new File([blob], `last.${ext}`, { type: blob.type || 'image/webp' });
+    await handleBaseImageFile(file);
+  } catch (e) {
+    flash('Could not load last result: ' + e.message);
   }
 }
 
