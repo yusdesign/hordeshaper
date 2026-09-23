@@ -122,7 +122,11 @@ function wireListeners() {
   $('copyPromptBtn').addEventListener('click', copyPrompt);
   $('resetChipsBtn').addEventListener('click', resetFragments);
   // resolution sync
-  $('resPresetSelect').addEventListener('change', syncResolutionUi);
+  $('resPresetSelect').addEventListener('change', () => {
+    console.log('[res] changed to', $('resPresetSelect').value,
+                'inputs:', $('resWidth').value, $('resHeight').value);
+    syncResolutionUi();
+  });
   $('resWidth').addEventListener('input', onCustomSizeChanged);
   $('resHeight').addEventListener('input', onCustomSizeChanged);
 
